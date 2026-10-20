@@ -12,7 +12,7 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// 18 Curated Distinct Profiles
+// 18 Curated Distinct Profiles with Authentic Malayali Lifestyle Portraits
 const INITIAL_PERSONAS = [
   {
     id: 'manuel',
@@ -22,11 +22,10 @@ const INITIAL_PERSONAS = [
     location: 'Fort Kochi, Kerala',
     tagline: 'Lover of coastal sunsets, old jazz, and spontaneous chai runs.',
     bio: 'Software engineer by day, acoustic guitarist and amateur surfer by dusk. Looking for someone who enjoys meaningful late-night conversations and good food by the beach.',
-    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=600&q=80',
     is_online: true,
     last_seen: 'Online now',
-    interests: ['Surfing', 'Acoustic Guitar', 'Filter Coffee', 'Coastal Sunsets', 'Indie Folk'],
-    is_virtual_demo: true
+    interests: ['Surfing', 'Acoustic Guitar', 'Filter Coffee', 'Coastal Sunsets', 'Indie Folk']
   },
   {
     id: 'arjun',
@@ -36,11 +35,10 @@ const INITIAL_PERSONAS = [
     location: 'Indiranagar, Bangalore',
     tagline: 'Calisthenics coach, tech enthusiast, and weekend trekker.',
     bio: 'Balancing fitness routines with craft brewery visits. Passionate about health, travel photography, and honest connections.',
-    avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1607346256330-dee7af15f7c5?auto=format&fit=crop&w=600&q=80',
     is_online: true,
     last_seen: 'Online now',
-    interests: ['Fitness', 'Trekking', 'Craft Beer', 'Photography', 'Podcasts'],
-    is_virtual_demo: true
+    interests: ['Fitness', 'Trekking', 'Craft Beer', 'Photography', 'Podcasts']
   },
   {
     id: 'adithyan',
@@ -50,11 +48,10 @@ const INITIAL_PERSONAS = [
     location: 'Trivandrum, Kerala',
     tagline: 'Cinematographer capturing quiet emotions and rainy streets.',
     bio: 'Visual storyteller fascinated by Malayalam cinema, film photography, and retro records. Let’s talk about our favorite films over tea.',
-    avatar_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1617127365659-c47fa864d8bc?auto=format&fit=crop&w=600&q=80',
     is_online: false,
     last_seen: 'Last seen 12 mins ago',
-    interests: ['Cinematography', 'Film Stills', 'Rainy Days', 'Vintage Cameras'],
-    is_virtual_demo: true
+    interests: ['Cinematography', 'Film Stills', 'Rainy Days', 'Vintage Cameras']
   },
   {
     id: 'amal',
@@ -64,11 +61,10 @@ const INITIAL_PERSONAS = [
     location: 'Calicut, Kerala',
     tagline: 'Specialty cafe owner & foodie at heart.',
     bio: 'I run a cozy specialty brew cafe in Kozhikode. I believe the best conversations happen over freshly roasted beans and warm pastries.',
-    avatar_url: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=600&q=80',
     is_online: true,
     last_seen: 'Online now',
-    interests: ['Coffee Brewing', 'Baking', 'Coastal Drives', 'Art Exhibitions'],
-    is_virtual_demo: true
+    interests: ['Coffee Brewing', 'Baking', 'Coastal Drives', 'Art Exhibitions']
   },
   {
     id: 'nikhil',
@@ -78,11 +74,10 @@ const INITIAL_PERSONAS = [
     location: 'Bandra, Mumbai',
     tagline: 'Product Designer who notices all the tiny details.',
     bio: 'Obsessed with great UI, street tacos, and weekend vinyl hunting. Looking for banter, wit, and someone who appreciates good design.',
-    avatar_url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=600&q=80',
     is_online: false,
     last_seen: 'Last seen 45 mins ago',
-    interests: ['Design', 'Vinyl Records', 'Modern Art', 'Standup Comedy'],
-    is_virtual_demo: true
+    interests: ['Design', 'Vinyl Records', 'Modern Art', 'Standup Comedy']
   },
   {
     id: 'rahul',
@@ -92,11 +87,10 @@ const INITIAL_PERSONAS = [
     location: 'Kochi, Kerala',
     tagline: 'Commercial pilot chasing clouds and new horizons.',
     bio: 'Seen 30 countries and counting, but there is no place like home backwaters. Searching for a co-pilot for spontaneous weekend getaways.',
-    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=600&q=80',
     is_online: true,
     last_seen: 'Online now',
-    interests: ['Aviation', 'Scuba Diving', 'Travel', 'Fine Dining'],
-    is_virtual_demo: true
+    interests: ['Aviation', 'Scuba Diving', 'Travel', 'Fine Dining']
   },
   {
     id: 'kevin',
@@ -106,11 +100,10 @@ const INITIAL_PERSONAS = [
     location: 'Anjuna, Goa',
     tagline: 'Electronic music producer & sunset devotee.',
     bio: 'Making lo-fi beats in my beachside studio. Friendly, relaxed vibes, passionate about sound design and sea breezes.',
-    avatar_url: 'https://images.unsplash.com/photo-1496345875659-11f7dd282d1d?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=600&q=80',
     is_online: false,
     last_seen: 'Last seen 2 hours ago',
-    interests: ['Music Production', 'Synthesizers', 'Skateboarding', 'Beach Sunsets'],
-    is_virtual_demo: true
+    interests: ['Music Production', 'Synthesizers', 'Skateboarding', 'Beach Sunsets']
   },
   {
     id: 'vishnu',
@@ -120,11 +113,10 @@ const INITIAL_PERSONAS = [
     location: 'Wayanad, Kerala',
     tagline: 'Wildlife conservationist living amidst misty hills.',
     bio: 'I spend my days tracking hornbills and reading natural history. Calm, grounded, and loves making bonfire dinners under starry skies.',
-    avatar_url: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80',
     is_online: true,
     last_seen: 'Online now',
-    interests: ['Wildlife Tracking', 'Birdwatching', 'Campfires', 'Acoustic Rock'],
-    is_virtual_demo: true
+    interests: ['Wildlife Tracking', 'Birdwatching', 'Campfires', 'Acoustic Rock']
   },
   {
     id: 'akhil',
@@ -134,11 +126,10 @@ const INITIAL_PERSONAS = [
     location: 'Koramangala, Bangalore',
     tagline: 'Fintech builder by week, midnight motorcycle cruiser by weekend.',
     bio: 'High energy, curious mind, always up for a road trip or an intense trivia night. Tell me your favorite conspiracy theory.',
-    avatar_url: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80',
     is_online: false,
     last_seen: 'Last seen 1 hour ago',
-    interests: ['Motorcycling', 'Trivia Nights', 'Podcasts', 'Late Night Drives'],
-    is_virtual_demo: true
+    interests: ['Motorcycling', 'Trivia Nights', 'Podcasts', 'Late Night Drives']
   },
   {
     id: 'rohan',
@@ -148,11 +139,10 @@ const INITIAL_PERSONAS = [
     location: 'Nungambakkam, Chennai',
     tagline: 'Architectural restorer with a soft spot for sourdough.',
     bio: 'Restoring colonial heritage homes and perfecting the art of French pastry. Looking for someone with genuine warmth and curiosity.',
-    avatar_url: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?auto=format&fit=crop&w=600&q=80',
     is_online: true,
     last_seen: 'Online now',
-    interests: ['Heritage Architecture', 'Cooking', 'Museums', 'Book Collecting'],
-    is_virtual_demo: true
+    interests: ['Heritage Architecture', 'Cooking', 'Museums', 'Book Collecting']
   },
   {
     id: 'meera',
@@ -162,11 +152,10 @@ const INITIAL_PERSONAS = [
     location: 'Panampilly Nagar, Kochi',
     tagline: 'UI designer by day, classical Mohiniyattam dancer by heart.',
     bio: 'Expressive eyes and an infectious laugh. I love quaint rooftop cafes, thrifted sarees, and deeply emotional Malayalam indie tracks.',
-    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80',
     is_online: true,
     last_seen: 'Online now',
-    interests: ['Classical Dance', 'Design', 'Rooftop Cafes', 'Indie Music', 'Poetry'],
-    is_virtual_demo: true
+    interests: ['Classical Dance', 'Design', 'Rooftop Cafes', 'Indie Music', 'Poetry']
   },
   {
     id: 'anjali',
@@ -176,11 +165,10 @@ const INITIAL_PERSONAS = [
     location: 'Lavelle Road, Bangalore',
     tagline: 'Landscape architect & proud plant mom.',
     bio: 'Surrounded by ferns and good books. I love curating vibrant green spaces, cycling through leafy boulevards, and sharing warm tea.',
-    avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
     is_online: true,
     last_seen: 'Online now',
-    interests: ['Urban Gardening', 'Biking', 'Botanical Art', 'Matcha Lattes'],
-    is_virtual_demo: true
+    interests: ['Urban Gardening', 'Biking', 'Botanical Art', 'Matcha Lattes']
   },
   {
     id: 'devika',
@@ -190,11 +178,10 @@ const INITIAL_PERSONAS = [
     location: 'Colaba, Mumbai',
     tagline: 'Stylist & creative director living in bold color palettes.',
     bio: 'Spontaneous, vibrant, and always planning the next art trip. Tell me your top 3 favorite songs right now!',
-    avatar_url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
     is_online: false,
     last_seen: 'Last seen 25 mins ago',
-    interests: ['Fashion Styling', 'Art Galleries', 'Road Trips', 'Live Gigs'],
-    is_virtual_demo: true
+    interests: ['Fashion Styling', 'Art Galleries', 'Road Trips', 'Live Gigs']
   },
   {
     id: 'diya',
@@ -204,11 +191,10 @@ const INITIAL_PERSONAS = [
     location: 'Kowdiar, Trivandrum',
     tagline: 'Literature grad with a love for handwritten letters.',
     bio: 'Collecting vintage poetry collections and drinking endless cups of chamomile tea. Looking for sweet banter and meaningful soul-talks.',
-    avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80',
     is_online: true,
     last_seen: 'Online now',
-    interests: ['Poetry', 'Vintage Books', 'Stationery', 'Late Night Walks'],
-    is_virtual_demo: true
+    interests: ['Poetry', 'Vintage Books', 'Stationery', 'Late Night Walks']
   },
   {
     id: 'neha',
@@ -218,11 +204,10 @@ const INITIAL_PERSONAS = [
     location: 'Jubilee Hills, Hyderabad',
     tagline: 'Brand strategist, amateur potter, and karaoke superstar.',
     bio: 'Can make you laugh until your stomach hurts. Looking for someone with high emotional intelligence and an appetite for good biryani.',
-    avatar_url: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80',
     is_online: false,
     last_seen: 'Last seen 3 hours ago',
-    interests: ['Pottery', 'Karaoke', 'Food Walks', 'Board Games'],
-    is_virtual_demo: true
+    interests: ['Pottery', 'Karaoke', 'Food Walks', 'Board Games']
   },
   {
     id: 'athira',
@@ -232,11 +217,10 @@ const INITIAL_PERSONAS = [
     location: 'Thrissur, Kerala',
     tagline: 'Pediatrician with a heart full of empathy and silly jokes.',
     bio: 'When I am not in hospital scrubs, I am trying new curry recipes or reading detective fiction. Life is too short for dull conversations.',
-    avatar_url: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80',
     is_online: true,
     last_seen: 'Online now',
-    interests: ['Medicine', 'Cooking', 'Thrillers', 'Classical Carnatic'],
-    is_virtual_demo: true
+    interests: ['Medicine', 'Cooking', 'Thrillers', 'Classical Carnatic']
   },
   {
     id: 'kiran',
@@ -246,11 +230,10 @@ const INITIAL_PERSONAS = [
     location: 'Marine Drive, Kochi',
     tagline: 'Stand-up comedian & podcasts creator.',
     bio: 'Breaking binaries and telling funny stories about dating dilemmas. Looking for good vibes, bright sparks, and unapologetic self-expression.',
-    avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1614289371518-722f2615943d?auto=format&fit=crop&w=600&q=80',
     is_online: true,
     last_seen: 'Online now',
-    interests: ['Standup Comedy', 'Podcasting', 'Queer Culture', 'Street Food'],
-    is_virtual_demo: true
+    interests: ['Standup Comedy', 'Podcasting', 'Queer Culture', 'Street Food']
   },
   {
     id: 'hannah',
@@ -260,11 +243,10 @@ const INITIAL_PERSONAS = [
     location: 'North Cliff, Varkala',
     tagline: 'Vinyasa yoga coach and cliff-side sunset chaser.',
     bio: 'Sun-kissed, free-spirited, and living by the tide. Love sound healing, ocean swims, and honest laughter. Vibe check first!',
-    avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80',
+    avatar_url: 'https://images.unsplash.com/photo-1621784563330-caee0b138a00?auto=format&fit=crop&w=600&q=80',
     is_online: false,
     last_seen: 'Last seen 15 mins ago',
-    interests: ['Yoga', 'Ocean Swims', 'Aromatherapy', 'Acoustic Guitar'],
-    is_virtual_demo: true
+    interests: ['Yoga', 'Ocean Swims', 'Aromatherapy', 'Acoustic Guitar']
   }
 ];
 
@@ -296,11 +278,13 @@ class Database {
         const parsed = JSON.parse(raw);
         this.data = { ...this.data, ...parsed };
       }
-      // Ensure all initial personas exist
+      // Ensure all personas have updated authentic portraits and details
       INITIAL_PERSONAS.forEach(p => {
-        if (!this.data.personas[p.id]) {
-          this.data.personas[p.id] = p;
-        }
+        this.data.personas[p.id] = {
+          ...this.data.personas[p.id],
+          ...p,
+          avatar_url: p.avatar_url
+        };
       });
       this.save();
     } catch (err) {
@@ -428,6 +412,7 @@ class Database {
           visitorOnline: visitor.is_online,
           visitorGender: visitor.gender,
           visitorAge: visitor.age,
+          visitorPhone: visitor.phone || null,
           personaName: persona.name,
           personaAvatar: persona.avatar_url,
           personaLocation: persona.location

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { DEMO_PROFILES } from '../data/profiles';
 import ReportModal from '../components/ReportModal';
+import PhoneLoginModal from '../components/PhoneLoginModal';
 
 const QUICK_FLIRTS = [
   "Hey, how's your evening going? 😊",
@@ -20,7 +21,7 @@ const EMOJI_LIST = ['😊', '❤️', '✨', '😍', '🔥', '😘', '😉', '�
 export default function ChatPage() {
   const { personaId } = useParams();
   const navigate = useNavigate();
-  const { visitorId } = useAuth();
+  const { visitorId, visitorPhone } = useAuth();
   const { socket, sendMessage, playSoundAlert } = useSocket();
 
   const [persona, setPersona] = useState(() => {
@@ -31,6 +32,8 @@ export default function ChatPage() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showPhoneLoginModal, setShowPhoneLoginModal] = useState(false);
+  const [sentCount, setSentCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // Camera & Image Sharing State
@@ -137,6 +140,13 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, tempMsg]);
 
     sendMessage(personaId, content, 'text');
+
+    // Prompt for phone login after 1-2 chats if not logged in
+    const nextCount = sentCount + 1;
+    setSentCount(nextCount);
+    if (nextCount >= 2 && !visitorPhone) {
+      setTimeout(() => setShowPhoneLoginModal(true), 600);
+    }
 
     if (inputRef.current) {
       inputRef.current.focus();
@@ -310,6 +320,21 @@ export default function ChatPage() {
 
         {/* Right actions */}
         <div className="flex items-center gap-2">
+          {!visitorPhone ? (
+            <button
+              onClick={() => setShowPhoneLoginModal(true)}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:opacity-90 text-white font-bold text-xs shadow-md shadow-pink-600/20 transition-all flex items-center gap-1"
+              title="Login with your mobile number"
+            >
+              <span>Login</span>
+            </button>
+          ) : (
+            <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>+91 {visitorPhone}</span>
+            </div>
+          )}
+
           <button
             onClick={() => setShowReportModal(true)}
             className="p-2 rounded-xl bg-white/5 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 border border-white/5 transition-colors text-xs flex items-center gap-1.5"
@@ -599,6 +624,16 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+
+      {/* Mandatory 10-Digit Phone Login Modal */}
+      <PhoneLoginModal
+        isOpen={showPhoneLoginModal}
+        onClose={() => setShowPhoneLoginModal(false)}
+        personaName={persona?.name}
+        onLoginSuccess={(phone) => {
+          setShowPhoneLoginModal(false);
+        }}
+      />
 
       {/* Report & Block Modal */}
       {persona && (

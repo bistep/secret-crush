@@ -143,16 +143,25 @@ export default function OwnerInboxPage() {
       }
     };
 
+    const handleVisitorPhone = () => {
+      fetchConversations();
+      if (selectedConvId) {
+        fetchActiveConversation(selectedConvId);
+      }
+    };
+
     socket.on('owner:new_message', handleNewMessage);
     socket.on('owner:reply_sent', handleReplySent);
     socket.on('visitor:status', handleVisitorStatus);
     socket.on('visitor:typing_status', handleVisitorTyping);
+    socket.on('visitor:phone_updated', handleVisitorPhone);
 
     return () => {
       socket.off('owner:new_message', handleNewMessage);
       socket.off('owner:reply_sent', handleReplySent);
       socket.off('visitor:status', handleVisitorStatus);
       socket.off('visitor:typing_status', handleVisitorTyping);
+      socket.off('visitor:phone_updated', handleVisitorPhone);
     };
   }, [socket, isOwnerLoggedIn, selectedConvId, soundEnabled]);
 
@@ -475,6 +484,12 @@ export default function OwnerInboxPage() {
                         )}
                       </div>
 
+                      {conv.visitorPhone && (
+                        <div className="flex items-center gap-1 text-[11px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 w-fit mb-1">
+                          <span>📱 +91 {conv.visitorPhone}</span>
+                        </div>
+                      )}
+
                       <p className={`text-xs truncate ${conv.unreadByOwner > 0 ? 'text-white font-semibold' : 'text-slate-400'}`}>
                         {conv.lastSender === 'visitor' ? 'Visitor: ' : 'You: '}
                         {conv.lastMessage || 'Conversation started'}
@@ -542,6 +557,11 @@ export default function OwnerInboxPage() {
                         {activeConversationData.visitor?.is_online ? 'Visitor connected now' : 'Visitor offline'}
                       </span>
                     </div>
+                    {(activeConversationData.conversation.visitorPhone || activeConversationData.visitor?.phone) && (
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-xs font-bold w-fit mt-1.5">
+                        <span>📱 Mobile: +91 {activeConversationData.conversation.visitorPhone || activeConversationData.visitor?.phone}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

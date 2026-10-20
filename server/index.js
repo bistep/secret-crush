@@ -104,6 +104,28 @@ app.post('/api/visitors/verify-age', (req, res) => {
   res.json({ success: true, visitor: updated, age });
 });
 
+// 4b. Record Visitor Phone Number (Mandatory 10 digits)
+app.post('/api/visitors/phone', (req, res) => {
+  const { visitorId, phone } = req.body;
+  if (!visitorId || !phone) {
+    return res.status(400).json({ error: 'visitorId and phone are required' });
+  }
+
+  const cleanPhone = phone.replace(/[^0-9]/g, '');
+  if (cleanPhone.length !== 10) {
+    return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
+  }
+
+  const updated = db.updateVisitor(visitorId, { phone: cleanPhone });
+  io.to('room:owner').emit('visitor:phone_updated', {
+    visitorId,
+    phone: cleanPhone,
+    updatedAt: new Date().toISOString()
+  });
+
+  res.json({ success: true, visitor: updated });
+});
+
 // 5. Update Visitor Preferences
 app.post('/api/visitors/preferences', (req, res) => {
   const { visitorId, gender, preference } = req.body;

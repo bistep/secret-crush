@@ -17,6 +17,7 @@ export function AuthProvider({ children }) {
   const [preference, setPreference] = useState(() => localStorage.getItem('sc_preference') || 'Everyone');
   const [isAgeVerified, setIsAgeVerified] = useState(() => localStorage.getItem('sc_age_verified') === 'true');
   const [userAge, setUserAge] = useState(() => Number(localStorage.getItem('sc_user_age')) || null);
+  const [visitorPhone, setVisitorPhone] = useState(() => localStorage.getItem('sc_visitor_phone') || '');
   const [favorites, setFavorites] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('sc_favorites') || '[]');
@@ -128,6 +129,27 @@ export function AuthProvider({ children }) {
     return data;
   };
 
+  const loginWithPhone = async (phone) => {
+    const clean = phone.replace(/[^0-9]/g, '');
+    if (clean.length !== 10) {
+      throw new Error('Please enter a valid 10-digit mobile number');
+    }
+
+    setVisitorPhone(clean);
+    localStorage.setItem('sc_visitor_phone', clean);
+
+    try {
+      await fetch('/api/visitors/phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visitorId, phone: clean })
+      });
+    } catch (e) {
+      console.log('Phone record offline sync');
+    }
+    return { success: true, phone: clean };
+  };
+
   const logoutOwner = () => {
     setOwnerToken('');
     setIsOwnerLoggedIn(false);
@@ -142,6 +164,8 @@ export function AuthProvider({ children }) {
         preference,
         isAgeVerified,
         userAge,
+        visitorPhone,
+        loginWithPhone,
         favorites,
         ownerToken,
         isOwnerLoggedIn,
