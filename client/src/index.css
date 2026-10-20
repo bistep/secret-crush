@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #0A0812;
+    color: #F8FAFC;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* Custom romantic glow & gradients */
+.glow-pink {
+  box-shadow: 0 0 25px -5px rgba(255, 46, 126, 0.35);
+}
+
+.glow-purple {
+  box-shadow: 0 0 25px -5px rgba(139, 92, 246, 0.35);
+}
+
+.gradient-romantic {
+  background: linear-gradient(135deg, #FF2E7E 0%, #E11D48 40%, #7C3AED 100%);
+}
+
+.gradient-card {
+  background: linear-gradient(180deg, rgba(26, 21, 40, 0.75) 0%, rgba(18, 15, 29, 0.95) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.gradient-header {
+  background: linear-gradient(180deg, rgba(10, 8, 18, 0.95) 0%, rgba(10, 8, 18, 0.75) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0A0812;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2A1F3D;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FF2E7E;
+}
