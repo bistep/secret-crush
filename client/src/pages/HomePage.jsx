@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Heart, Sparkles, Filter, Users, Flame, RefreshCw } from 'lucide-react';
+import { Heart, Sparkles, Users, Flame, RefreshCw, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { DEMO_PROFILES } from '../data/profiles';
 import ProfileCard from '../components/ProfileCard';
 import FilterBar from '../components/FilterBar';
 import AgeFilter, { AGE_RANGES } from '../components/AgeFilter';
-import AgeVerificationModal from '../components/AgeVerificationModal';
+import VisitorOnboardingModal from '../components/VisitorOnboardingModal';
 
 export default function HomePage() {
-  const { isAgeVerified, preference: userPreference, favorites } = useAuth();
+  const { isProfileComplete, preference: userPreference, favorites, visitorName, visitorAvatar } = useAuth();
   const [profiles, setProfiles] = useState(DEMO_PROFILES);
   const [loading, setLoading] = useState(false);
 
@@ -19,6 +19,7 @@ export default function HomePage() {
     if (userPreference === 'Women') return 'Women';
     return 'Everyone';
   });
+  const [districtFilter, setDistrictFilter] = useState('All Kerala');
   const [onlineOnly, setOnlineOnly] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [selectedAgeRanges, setSelectedAgeRanges] = useState([]);
@@ -37,29 +38,42 @@ export default function HomePage() {
       });
   }, []);
 
+  // Update gender filter if user preference changes
+  useEffect(() => {
+    if (userPreference === 'Women') setGenderFilter('Women');
+    else if (userPreference === 'Men') setGenderFilter('Men');
+  }, [userPreference]);
+
   // Filter profiles based on all criteria
   const filteredProfiles = useMemo(() => {
     return profiles.filter((p) => {
-      // 1. Search Query
+      // 1. Search Query (name, place, handle)
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesName = p.name.toLowerCase().includes(q);
-        const matchesLoc = p.location?.toLowerCase().includes(q);
-        const matchesBio = p.bio?.toLowerCase().includes(q) || p.tagline?.toLowerCase().includes(q);
-        if (!matchesName && !matchesLoc && !matchesBio) return false;
+        const matchesPlace = (p.place || p.location || '').toLowerCase().includes(q);
+        const matchesHandle = (p.handle || '').toLowerCase().includes(q);
+        if (!matchesName && !matchesPlace && !matchesHandle) return false;
       }
 
       // 2. Gender Filter
       if (genderFilter === 'Women' && p.gender !== 'Female') return false;
       if (genderFilter === 'Men' && p.gender !== 'Male') return false;
 
-      // 3. Online Only
+      // 3. District Filter
+      if (districtFilter && districtFilter !== 'All Kerala') {
+        const target = districtFilter.toLowerCase();
+        const matchesPlace = (p.place || p.location || '').toLowerCase().includes(target);
+        if (!matchesPlace) return false;
+      }
+
+      // 4. Online Only
       if (onlineOnly && !p.is_online) return false;
 
-      // 4. Favorites Only
+      // 5. Favorites Only
       if (favoritesOnly && !favorites.includes(p.id)) return false;
 
-      // 5. Age Range Multi-Filter
+      // 6. Age Range Multi-Filter
       if (selectedAgeRanges.length > 0) {
         const matchesAnyRange = selectedAgeRanges.some((rangeId) => {
           const rangeObj = AGE_RANGES.find(r => r.id === rangeId);
@@ -71,11 +85,12 @@ export default function HomePage() {
 
       return true;
     });
-  }, [profiles, searchQuery, genderFilter, onlineOnly, favoritesOnly, selectedAgeRanges, favorites]);
+  }, [profiles, searchQuery, genderFilter, districtFilter, onlineOnly, favoritesOnly, selectedAgeRanges, favorites]);
 
   const handleResetFilters = () => {
     setSearchQuery('');
     setGenderFilter('Everyone');
+    setDistrictFilter('All Kerala');
     setOnlineOnly(false);
     setFavoritesOnly(false);
     setSelectedAgeRanges([]);
@@ -83,44 +98,58 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen pb-24 md:pb-16 bg-[#0A0812]">
-      {/* Mandatory 20+ Age Verification Modal */}
-      <AgeVerificationModal isOpen={!isAgeVerified} />
+      {/* Visitor Onboarding Modal (Name -> Gender/Interest -> 6 Avatar Selection) */}
+      <VisitorOnboardingModal isOpen={!isProfileComplete} />
 
-      {/* Romantic Hero Banner */}
-      <section className="relative overflow-hidden pt-8 pb-12 sm:pt-14 sm:pb-16 px-4 sm:px-6 lg:px-8 border-b border-purple-900/30">
-        {/* Glowing atmospheric backgrounds */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-gradient-to-tr from-pink-600/20 via-purple-600/20 to-transparent blur-3xl rounded-full pointer-events-none" />
+      {/* Hero Banner Section */}
+      <section className="relative overflow-hidden pt-6 pb-10 sm:pt-12 sm:pb-14 px-4 sm:px-6 lg:px-8 border-b border-purple-900/30">
+        <div className="max-w-5xl mx-auto space-y-6">
+          
+          {/* Main Headline Badge: Kerala Malayali Free Chats */}
+          <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-emerald-950/80 via-purple-950/80 to-pink-950/80 border border-emerald-500/40 shadow-2xl shadow-emerald-950/40 text-center relative overflow-hidden">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30 mb-3 backdrop-blur-md">
+              <span className="text-sm">🌴</span>
+              <span>100% FREE KERALA CHATS</span>
+              <span>•</span>
+              <span>കേരളത്തിലെ മലയാളികൾക്കായി</span>
+            </div>
 
-        <div className="relative max-w-4xl mx-auto text-center space-y-4">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-pink-500/10 border border-pink-500/20 text-pink-300 text-xs font-semibold backdrop-blur-md">
-            <Flame className="w-3.5 h-3.5 text-pink-400 fill-pink-400" />
-            <span>Discover Passionate Connections</span>
+            <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-snug">
+              Specially Made for Kerala Malayali Chats — 100% Entirely Free!
+            </h1>
+
+            <p className="text-xs sm:text-sm text-pink-200/90 mt-2.5 max-w-2xl mx-auto leading-relaxed font-normal">
+              കേരളത്തിലെ എല്ലാ ജില്ലകളിലെയും മലയാളികൾക്കായി പ്രത്യേകം തയ്യാറാക്കിയ ചാറ്റ് പ്ലാറ്റ്‌ഫോം. No subscriptions, no hidden charges — pick any avatar and start chatting freely right now!
+            </p>
+
+            {/* If visitor has logged in / finished setup, show their greeting */}
+            {visitorName && (
+              <div className="mt-4 inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 text-xs text-white">
+                {visitorAvatar && (
+                  <img src={visitorAvatar} alt={visitorName} className="w-5 h-5 rounded-full object-cover" />
+                )}
+                <span>Chatting as <strong className="text-pink-300">{visitorName}</strong></span>
+              </div>
+            )}
           </div>
 
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-            Find a vibe.{' '}
-            <span className="bg-gradient-to-r from-pink-500 via-rose-400 to-purple-400 bg-clip-text text-transparent">
-              Start a conversation.
-            </span>
-          </h1>
-
-          <p className="text-sm sm:text-base text-slate-300/80 max-w-2xl mx-auto font-normal leading-relaxed">
-            Browse through attractive, charismatic personas, choose someone you like, and dive into thrilling, private flirtatious chat right now.
-          </p>
-
           {/* Quick Stats Pill */}
-          <div className="pt-2 flex items-center justify-center gap-6 text-xs text-slate-400 font-medium">
-            <span className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs text-slate-300 font-medium">
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              18+ Curated Personas
+              100+ Active Kerala Avatars
             </span>
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/5">
               <Heart className="w-3.5 h-3.5 text-pink-400" />
-              Instant Real-time Chat
+              Real-time Live Chat
             </span>
-            <span className="hidden sm:flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/5">
+              <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+              All 14 Districts
+            </span>
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/5">
               <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-              Strictly 20+ Consenting Adults
+              Strictly 20+ Adult Only
             </span>
           </div>
         </div>
@@ -134,6 +163,8 @@ export default function HomePage() {
           onSearchChange={setSearchQuery}
           genderFilter={genderFilter}
           onGenderFilterChange={setGenderFilter}
+          districtFilter={districtFilter}
+          onDistrictFilterChange={setDistrictFilter}
           onlineOnly={onlineOnly}
           onOnlineOnlyChange={setOnlineOnly}
           favoritesOnly={favoritesOnly}
@@ -146,9 +177,9 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-pink-400" />
             <h2 className="text-lg font-bold text-white tracking-tight">
-              Featured Profiles
+              Kerala Profiles
             </h2>
-            <span className="px-2 py-0.5 rounded-full bg-white/10 text-xs text-slate-300 font-medium">
+            <span className="px-2.5 py-0.5 rounded-full bg-pink-500/15 border border-pink-500/30 text-xs text-pink-300 font-bold">
               {filteredProfiles.length}
             </span>
           </div>
@@ -156,7 +187,7 @@ export default function HomePage() {
 
         {/* Profiles Grid */}
         {filteredProfiles.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {filteredProfiles.map((profile) => (
               <ProfileCard key={profile.id} profile={profile} />
             ))}
@@ -169,7 +200,7 @@ export default function HomePage() {
             </div>
             <h3 className="text-lg font-bold text-white">No Profiles Found</h3>
             <p className="text-xs text-slate-300 leading-relaxed max-w-sm mx-auto">
-              We couldn't find any profiles matching your current filters. Try expanding your age range or resetting filters.
+              We couldn't find any profiles matching your filters. Try selecting another district or resetting filters.
             </p>
             <button
               onClick={handleResetFilters}
@@ -181,7 +212,7 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Section 8: Preferred Age Group Selector */}
+        {/* Preferred Age Group Selector */}
         <div className="mt-14 mb-8">
           <AgeFilter
             selectedRanges={selectedAgeRanges}

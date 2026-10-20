@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
+import { INITIAL_PERSONAS } from './personas.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,244 +12,6 @@ const DB_FILE = path.join(DATA_DIR, 'db.json');
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
-
-// 18 Curated Distinct Profiles with Authentic Malayali Lifestyle Portraits
-const INITIAL_PERSONAS = [
-  {
-    id: 'manuel',
-    name: 'Manuel',
-    age: 25,
-    gender: 'Male',
-    location: 'Fort Kochi, Kerala',
-    tagline: 'Lover of coastal sunsets, old jazz, and spontaneous chai runs.',
-    bio: 'Software engineer by day, acoustic guitarist and amateur surfer by dusk. Looking for someone who enjoys meaningful late-night conversations and good food by the beach.',
-    avatar_url: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=600&q=80',
-    is_online: true,
-    last_seen: 'Online now',
-    interests: ['Surfing', 'Acoustic Guitar', 'Filter Coffee', 'Coastal Sunsets', 'Indie Folk']
-  },
-  {
-    id: 'arjun',
-    name: 'Arjun',
-    age: 27,
-    gender: 'Male',
-    location: 'Indiranagar, Bangalore',
-    tagline: 'Calisthenics coach, tech enthusiast, and weekend trekker.',
-    bio: 'Balancing fitness routines with craft brewery visits. Passionate about health, travel photography, and honest connections.',
-    avatar_url: 'https://images.unsplash.com/photo-1607346256330-dee7af15f7c5?auto=format&fit=crop&w=600&q=80',
-    is_online: true,
-    last_seen: 'Online now',
-    interests: ['Fitness', 'Trekking', 'Craft Beer', 'Photography', 'Podcasts']
-  },
-  {
-    id: 'adithyan',
-    name: 'Adithyan',
-    age: 24,
-    gender: 'Male',
-    location: 'Trivandrum, Kerala',
-    tagline: 'Cinematographer capturing quiet emotions and rainy streets.',
-    bio: 'Visual storyteller fascinated by Malayalam cinema, film photography, and retro records. Let’s talk about our favorite films over tea.',
-    avatar_url: 'https://images.unsplash.com/photo-1617127365659-c47fa864d8bc?auto=format&fit=crop&w=600&q=80',
-    is_online: false,
-    last_seen: 'Last seen 12 mins ago',
-    interests: ['Cinematography', 'Film Stills', 'Rainy Days', 'Vintage Cameras']
-  },
-  {
-    id: 'amal',
-    name: 'Amal',
-    age: 26,
-    gender: 'Male',
-    location: 'Calicut, Kerala',
-    tagline: 'Specialty cafe owner & foodie at heart.',
-    bio: 'I run a cozy specialty brew cafe in Kozhikode. I believe the best conversations happen over freshly roasted beans and warm pastries.',
-    avatar_url: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=600&q=80',
-    is_online: true,
-    last_seen: 'Online now',
-    interests: ['Coffee Brewing', 'Baking', 'Coastal Drives', 'Art Exhibitions']
-  },
-  {
-    id: 'nikhil',
-    name: 'Nikhil',
-    age: 28,
-    gender: 'Male',
-    location: 'Bandra, Mumbai',
-    tagline: 'Product Designer who notices all the tiny details.',
-    bio: 'Obsessed with great UI, street tacos, and weekend vinyl hunting. Looking for banter, wit, and someone who appreciates good design.',
-    avatar_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=600&q=80',
-    is_online: false,
-    last_seen: 'Last seen 45 mins ago',
-    interests: ['Design', 'Vinyl Records', 'Modern Art', 'Standup Comedy']
-  },
-  {
-    id: 'rahul',
-    name: 'Rahul',
-    age: 29,
-    gender: 'Male',
-    location: 'Kochi, Kerala',
-    tagline: 'Commercial pilot chasing clouds and new horizons.',
-    bio: 'Seen 30 countries and counting, but there is no place like home backwaters. Searching for a co-pilot for spontaneous weekend getaways.',
-    avatar_url: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=600&q=80',
-    is_online: true,
-    last_seen: 'Online now',
-    interests: ['Aviation', 'Scuba Diving', 'Travel', 'Fine Dining']
-  },
-  {
-    id: 'kevin',
-    name: 'Kevin',
-    age: 23,
-    gender: 'Male',
-    location: 'Anjuna, Goa',
-    tagline: 'Electronic music producer & sunset devotee.',
-    bio: 'Making lo-fi beats in my beachside studio. Friendly, relaxed vibes, passionate about sound design and sea breezes.',
-    avatar_url: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=600&q=80',
-    is_online: false,
-    last_seen: 'Last seen 2 hours ago',
-    interests: ['Music Production', 'Synthesizers', 'Skateboarding', 'Beach Sunsets']
-  },
-  {
-    id: 'vishnu',
-    name: 'Vishnu',
-    age: 26,
-    gender: 'Male',
-    location: 'Wayanad, Kerala',
-    tagline: 'Wildlife conservationist living amidst misty hills.',
-    bio: 'I spend my days tracking hornbills and reading natural history. Calm, grounded, and loves making bonfire dinners under starry skies.',
-    avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80',
-    is_online: true,
-    last_seen: 'Online now',
-    interests: ['Wildlife Tracking', 'Birdwatching', 'Campfires', 'Acoustic Rock']
-  },
-  {
-    id: 'akhil',
-    name: 'Akhil',
-    age: 25,
-    gender: 'Male',
-    location: 'Koramangala, Bangalore',
-    tagline: 'Fintech builder by week, midnight motorcycle cruiser by weekend.',
-    bio: 'High energy, curious mind, always up for a road trip or an intense trivia night. Tell me your favorite conspiracy theory.',
-    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80',
-    is_online: false,
-    last_seen: 'Last seen 1 hour ago',
-    interests: ['Motorcycling', 'Trivia Nights', 'Podcasts', 'Late Night Drives']
-  },
-  {
-    id: 'rohan',
-    name: 'Rohan',
-    age: 31,
-    gender: 'Male',
-    location: 'Nungambakkam, Chennai',
-    tagline: 'Architectural restorer with a soft spot for sourdough.',
-    bio: 'Restoring colonial heritage homes and perfecting the art of French pastry. Looking for someone with genuine warmth and curiosity.',
-    avatar_url: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?auto=format&fit=crop&w=600&q=80',
-    is_online: true,
-    last_seen: 'Online now',
-    interests: ['Heritage Architecture', 'Cooking', 'Museums', 'Book Collecting']
-  },
-  {
-    id: 'meera',
-    name: 'Meera',
-    age: 24,
-    gender: 'Female',
-    location: 'Panampilly Nagar, Kochi',
-    tagline: 'UI designer by day, classical Mohiniyattam dancer by heart.',
-    bio: 'Expressive eyes and an infectious laugh. I love quaint rooftop cafes, thrifted sarees, and deeply emotional Malayalam indie tracks.',
-    avatar_url: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80',
-    is_online: true,
-    last_seen: 'Online now',
-    interests: ['Classical Dance', 'Design', 'Rooftop Cafes', 'Indie Music', 'Poetry']
-  },
-  {
-    id: 'anjali',
-    name: 'Anjali',
-    age: 26,
-    gender: 'Female',
-    location: 'Lavelle Road, Bangalore',
-    tagline: 'Landscape architect & proud plant mom.',
-    bio: 'Surrounded by ferns and good books. I love curating vibrant green spaces, cycling through leafy boulevards, and sharing warm tea.',
-    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
-    is_online: true,
-    last_seen: 'Online now',
-    interests: ['Urban Gardening', 'Biking', 'Botanical Art', 'Matcha Lattes']
-  },
-  {
-    id: 'devika',
-    name: 'Devika',
-    age: 25,
-    gender: 'Female',
-    location: 'Colaba, Mumbai',
-    tagline: 'Stylist & creative director living in bold color palettes.',
-    bio: 'Spontaneous, vibrant, and always planning the next art trip. Tell me your top 3 favorite songs right now!',
-    avatar_url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
-    is_online: false,
-    last_seen: 'Last seen 25 mins ago',
-    interests: ['Fashion Styling', 'Art Galleries', 'Road Trips', 'Live Gigs']
-  },
-  {
-    id: 'diya',
-    name: 'Diya',
-    age: 22,
-    gender: 'Female',
-    location: 'Kowdiar, Trivandrum',
-    tagline: 'Literature grad with a love for handwritten letters.',
-    bio: 'Collecting vintage poetry collections and drinking endless cups of chamomile tea. Looking for sweet banter and meaningful soul-talks.',
-    avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80',
-    is_online: true,
-    last_seen: 'Online now',
-    interests: ['Poetry', 'Vintage Books', 'Stationery', 'Late Night Walks']
-  },
-  {
-    id: 'neha',
-    name: 'Neha',
-    age: 27,
-    gender: 'Female',
-    location: 'Jubilee Hills, Hyderabad',
-    tagline: 'Brand strategist, amateur potter, and karaoke superstar.',
-    bio: 'Can make you laugh until your stomach hurts. Looking for someone with high emotional intelligence and an appetite for good biryani.',
-    avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80',
-    is_online: false,
-    last_seen: 'Last seen 3 hours ago',
-    interests: ['Pottery', 'Karaoke', 'Food Walks', 'Board Games']
-  },
-  {
-    id: 'athira',
-    name: 'Athira',
-    age: 28,
-    gender: 'Female',
-    location: 'Thrissur, Kerala',
-    tagline: 'Pediatrician with a heart full of empathy and silly jokes.',
-    bio: 'When I am not in hospital scrubs, I am trying new curry recipes or reading detective fiction. Life is too short for dull conversations.',
-    avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80',
-    is_online: true,
-    last_seen: 'Online now',
-    interests: ['Medicine', 'Cooking', 'Thrillers', 'Classical Carnatic']
-  },
-  {
-    id: 'kiran',
-    name: 'Kiran',
-    age: 26,
-    gender: 'Non-binary',
-    location: 'Marine Drive, Kochi',
-    tagline: 'Stand-up comedian & podcasts creator.',
-    bio: 'Breaking binaries and telling funny stories about dating dilemmas. Looking for good vibes, bright sparks, and unapologetic self-expression.',
-    avatar_url: 'https://images.unsplash.com/photo-1614289371518-722f2615943d?auto=format&fit=crop&w=600&q=80',
-    is_online: true,
-    last_seen: 'Online now',
-    interests: ['Standup Comedy', 'Podcasting', 'Queer Culture', 'Street Food']
-  },
-  {
-    id: 'hannah',
-    name: 'Hannah',
-    age: 25,
-    gender: 'Female',
-    location: 'North Cliff, Varkala',
-    tagline: 'Vinyasa yoga coach and cliff-side sunset chaser.',
-    bio: 'Sun-kissed, free-spirited, and living by the tide. Love sound healing, ocean swims, and honest laughter. Vibe check first!',
-    avatar_url: 'https://images.unsplash.com/photo-1621784563330-caee0b138a00?auto=format&fit=crop&w=600&q=80',
-    is_online: false,
-    last_seen: 'Last seen 15 mins ago',
-    interests: ['Yoga', 'Ocean Swims', 'Aromatherapy', 'Acoustic Guitar']
-  }
-];
 
 class Database {
   constructor() {
@@ -278,17 +41,15 @@ class Database {
         const parsed = JSON.parse(raw);
         this.data = { ...this.data, ...parsed };
       }
-      // Ensure all personas have updated authentic portraits and details
+      // Populate/sync with all 108 Kerala game-style avatar personas
+      this.data.personas = {};
       INITIAL_PERSONAS.forEach(p => {
-        this.data.personas[p.id] = {
-          ...this.data.personas[p.id],
-          ...p,
-          avatar_url: p.avatar_url
-        };
+        this.data.personas[p.id] = p;
       });
       this.save();
     } catch (err) {
       console.error('Error loading DB, using fallback defaults:', err.message);
+      this.data.personas = {};
       INITIAL_PERSONAS.forEach(p => {
         this.data.personas[p.id] = p;
       });
@@ -326,6 +87,8 @@ class Database {
     if (!this.data.visitors[visitorId]) {
       this.data.visitors[visitorId] = {
         id: visitorId,
+        name: metadata.name || '',
+        avatar: metadata.avatar || '',
         gender: metadata.gender || 'Prefer not to say',
         preference: metadata.preference || 'Everyone',
         dob: metadata.dob || null,
@@ -363,7 +126,6 @@ class Database {
   }
 
   // --- Conversations ---
-  // Keyed uniquely by `${visitorId}_${personaId}`
   getConversationId(visitorId, personaId) {
     return `${visitorId}_${personaId}`;
   }
@@ -410,12 +172,16 @@ class Database {
         return {
           ...c,
           visitorOnline: visitor.is_online,
+          visitorName: visitor.name || null,
+          visitorAvatar: visitor.avatar || null,
           visitorGender: visitor.gender,
           visitorAge: visitor.age,
           visitorPhone: visitor.phone || null,
           personaName: persona.name,
           personaAvatar: persona.avatar_url,
-          personaLocation: persona.location
+          personaLocation: persona.location,
+          personaPlace: persona.place,
+          personaHandle: persona.handle
         };
       })
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
@@ -433,7 +199,7 @@ class Database {
       conversationId,
       visitorId,
       personaId,
-      sender, // 'visitor' or 'owner'
+      sender,
       content: content.trim(),
       type: isImage ? 'image' : 'text',
       createdAt: new Date().toISOString(),
@@ -442,7 +208,6 @@ class Database {
 
     this.data.messages.push(message);
 
-    // Update conversation record
     const conv = this.data.conversations[conversationId];
     if (conv) {
       conv.updatedAt = message.createdAt;
@@ -460,7 +225,7 @@ class Database {
     return message;
   }
 
-  markMessagesAsRead(conversationId, readerType) { // readerType: 'owner' or 'visitor'
+  markMessagesAsRead(conversationId, readerType) {
     let updated = false;
     this.data.messages.forEach(m => {
       if (m.conversationId === conversationId) {

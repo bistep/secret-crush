@@ -134,6 +134,22 @@ app.post('/api/visitors/preferences', (req, res) => {
   res.json(updated);
 });
 
+// 5b. Update Visitor Profile (Name, Gender, Preference, Avatar)
+app.post('/api/visitors/profile', (req, res) => {
+  const { visitorId, name, gender, preference, avatar } = req.body;
+  if (!visitorId) return res.status(400).json({ error: 'visitorId required' });
+  const updated = db.updateVisitor(visitorId, { name, gender, preference, avatar });
+  io.to('room:owner').emit('visitor:profile_updated', {
+    visitorId,
+    name,
+    gender,
+    preference,
+    avatar,
+    updatedAt: new Date().toISOString()
+  });
+  res.json({ success: true, visitor: updated });
+});
+
 // 6. Favorites
 app.post('/api/favorites/toggle', (req, res) => {
   const { visitorId, personaId } = req.body;

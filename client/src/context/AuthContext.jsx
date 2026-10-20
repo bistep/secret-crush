@@ -13,6 +13,8 @@ function getOrCreateVisitorId() {
 
 export function AuthProvider({ children }) {
   const [visitorId] = useState(getOrCreateVisitorId);
+  const [visitorName, setVisitorName] = useState(() => localStorage.getItem('sc_visitor_name') || '');
+  const [visitorAvatar, setVisitorAvatar] = useState(() => localStorage.getItem('sc_visitor_avatar') || '');
   const [gender, setGender] = useState(() => localStorage.getItem('sc_gender') || '');
   const [preference, setPreference] = useState(() => localStorage.getItem('sc_preference') || 'Everyone');
   const [isAgeVerified, setIsAgeVerified] = useState(() => localStorage.getItem('sc_age_verified') === 'true');
@@ -25,6 +27,8 @@ export function AuthProvider({ children }) {
       return [];
     }
   });
+
+  const isProfileComplete = Boolean(visitorName && gender && visitorAvatar && isAgeVerified);
 
   // Owner state
   const [ownerToken, setOwnerToken] = useState(() => localStorage.getItem('sc_owner_token') || '');
@@ -150,6 +154,45 @@ export function AuthProvider({ children }) {
     return { success: true, phone: clean };
   };
 
+  const saveVisitorProfile = async ({ name, gender: newGender, preference: newPref, avatar }) => {
+    if (name) {
+      setVisitorName(name);
+      localStorage.setItem('sc_visitor_name', name);
+    }
+    if (newGender) {
+      setGender(newGender);
+      localStorage.setItem('sc_gender', newGender);
+    }
+    if (newPref) {
+      setPreference(newPref);
+      localStorage.setItem('sc_preference', newPref);
+    }
+    if (avatar) {
+      setVisitorAvatar(avatar);
+      localStorage.setItem('sc_visitor_avatar', avatar);
+    }
+
+    // Mark age verified for adult status
+    setIsAgeVerified(true);
+    localStorage.setItem('sc_age_verified', 'true');
+
+    try {
+      await fetch('/api/visitors/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          visitorId,
+          name: name || visitorName,
+          gender: newGender || gender,
+          preference: newPref || preference,
+          avatar: avatar || visitorAvatar
+        })
+      });
+    } catch (e) {
+      console.log('Profile sync offline');
+    }
+  };
+
   const logoutOwner = () => {
     setOwnerToken('');
     setIsOwnerLoggedIn(false);
@@ -160,6 +203,10 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider
       value={{
         visitorId,
+        visitorName,
+        visitorAvatar,
+        isProfileComplete,
+        saveVisitorProfile,
         gender,
         preference,
         isAgeVerified,

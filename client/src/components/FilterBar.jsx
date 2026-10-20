@@ -1,11 +1,19 @@
 import React from 'react';
-import { Search, Heart, CircleDot, X } from 'lucide-react';
+import { Search, Heart, CircleDot, X, MapPin } from 'lucide-react';
+
+export const KERALA_DISTRICTS = [
+  'All Kerala', 'Ernakulam', 'Kozhikode', 'Trivandrum', 'Thrissur', 'Kollam',
+  'Kottayam', 'Palakkad', 'Malappuram', 'Alappuzha', 'Kannur',
+  'Kasaragod', 'Wayanad', 'Idukki', 'Pathanamthitta'
+];
 
 export default function FilterBar({
   searchQuery,
   onSearchChange,
   genderFilter,
   onGenderFilterChange,
+  districtFilter,
+  onDistrictFilterChange,
   onlineOnly,
   onOnlineOnlyChange,
   favoritesOnly,
@@ -23,7 +31,7 @@ export default function FilterBar({
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search by name, location (e.g. Manuel, Kochi)..."
+            placeholder="Search by name, place, handle (e.g. Arjun, Ernakulam, @arjun324)..."
             className="w-full pl-10 pr-9 py-2.5 rounded-2xl bg-white/5 border border-purple-900/40 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition-all"
           />
           {searchQuery && (
@@ -73,8 +81,8 @@ export default function FilterBar({
         <span className="text-xs text-slate-400 font-medium mr-1">Show:</span>
         {[
           { id: 'Everyone', label: 'Everyone' },
-          { id: 'Women', label: 'Women' },
-          { id: 'Men', label: 'Men' },
+          { id: 'Women', label: '👩 Women' },
+          { id: 'Men', label: '👨 Men' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -89,6 +97,31 @@ export default function FilterBar({
             {tab.label}
           </button>
         ))}
+      </div>
+
+      {/* Kerala Districts Pills Selector */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex items-center gap-1 text-[11px] text-pink-400 font-semibold shrink-0 pr-1">
+          <MapPin className="w-3 h-3" />
+          <span>District:</span>
+        </div>
+        {KERALA_DISTRICTS.map((d) => {
+          const isSelected = (districtFilter || 'All Kerala') === d;
+          return (
+            <button
+              key={d}
+              type="button"
+              onClick={() => onDistrictFilterChange(d)}
+              className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
+                isSelected
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm shadow-emerald-600/30 font-semibold'
+                  : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              {d}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

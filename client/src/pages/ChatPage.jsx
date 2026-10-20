@@ -21,11 +21,12 @@ const EMOJI_LIST = ['😊', '❤️', '✨', '😍', '🔥', '😘', '😉', '�
 export default function ChatPage() {
   const { personaId } = useParams();
   const navigate = useNavigate();
+  const cleanPersonaId = (personaId || '').replace(/^@/, '');
   const { visitorId, visitorPhone } = useAuth();
   const { socket, sendMessage, playSoundAlert } = useSocket();
 
   const [persona, setPersona] = useState(() => {
-    return DEMO_PROFILES.find(p => p.id === personaId) || null;
+    return DEMO_PROFILES.find(p => p.id === cleanPersonaId || p.id === personaId || p.handle === `@${cleanPersonaId}` || p.handle === personaId) || null;
   });
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
@@ -287,14 +288,14 @@ export default function ChatPage() {
             <ArrowLeft className="w-5 h-5" />
           </button>
 
-          {/* Persona Avatar & Details */}
+          {/* Persona Avatar & Details (Header) */}
           {persona && (
             <div className="flex items-center gap-3">
-              <div className="relative w-11 h-11 rounded-2xl overflow-hidden border border-pink-500/30">
+              <div className="relative w-11 h-11 rounded-2xl overflow-hidden border border-pink-500/30 bg-purple-950/40 p-1 flex items-center justify-center">
                 <img
                   src={persona.avatar_url}
                   alt={persona.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
                 <span
                   className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#100C1D] ${
@@ -303,16 +304,23 @@ export default function ChatPage() {
                 />
               </div>
               <div>
-                <h1 className="font-bold text-sm sm:text-base text-white">
-                  {persona.name}, <span className="font-normal text-pink-300">{persona.age}</span>
-                </h1>
-                <p className="text-[11px] text-slate-400">
-                  {persona.is_online ? (
-                    <span className="text-emerald-400 font-medium">Online now</span>
-                  ) : (
-                    persona.last_seen || 'Offline'
-                  )}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <h1 className="font-bold text-sm sm:text-base text-white">
+                    {persona.name}, <span className="font-normal text-pink-300">{persona.age}</span>
+                  </h1>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full border font-semibold ${
+                    persona.gender === 'Female'
+                      ? 'bg-rose-500/10 text-rose-300 border-rose-500/20'
+                      : 'bg-blue-500/10 text-blue-300 border-blue-500/20'
+                  }`}>
+                    {persona.gender}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                  <span className="font-mono text-pink-400 font-semibold">{persona.handle || `@${persona.id}`}</span>
+                  <span>•</span>
+                  <span>{persona.place || persona.location}</span>
+                </div>
               </div>
             </div>
           )}
@@ -348,17 +356,33 @@ export default function ChatPage() {
 
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 max-w-4xl w-full mx-auto">
-        {/* Persona intro card */}
+        {/* Persona intro card (5 things only: Name, Age, Place, Gender, ID for redirecting) */}
         {persona && (
-          <div className="text-center py-6 px-4 bg-white/5 border border-purple-900/30 rounded-3xl max-w-md mx-auto space-y-2 mb-4">
-            <div className="w-16 h-16 rounded-full overflow-hidden mx-auto border-2 border-pink-500/40 shadow-lg shadow-pink-500/20">
-              <img src={persona.avatar_url} alt={persona.name} className="w-full h-full object-cover" />
+          <div className="text-center py-6 px-4 bg-gradient-to-b from-[#18112C] to-[#100C1D] border border-pink-500/25 rounded-3xl max-w-sm mx-auto space-y-3 mb-6 shadow-xl">
+            <div className="w-20 h-20 rounded-2xl overflow-hidden mx-auto border-2 border-pink-500/40 shadow-lg shadow-pink-500/20 bg-purple-950/40 p-2 flex items-center justify-center">
+              <img src={persona.avatar_url} alt={persona.name} className="w-full h-full object-contain" />
             </div>
-            <h3 className="font-bold text-white text-base">
-              {persona.name}, {persona.age}
-            </h3>
-            <p className="text-xs text-slate-400">{persona.location}</p>
-            <p className="text-xs text-slate-300 italic">"{persona.tagline || persona.bio}"</p>
+            <div>
+              <h3 className="font-bold text-white text-lg">
+                {persona.name}, <span className="font-normal text-pink-300">{persona.age}</span>
+              </h3>
+              {/* ID for redirecting - shown right below profile as requested */}
+              <div className="text-sm font-semibold font-mono text-pink-400 mt-0.5">
+                {persona.handle || `@${persona.id}`}
+              </div>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-xs text-slate-300 pt-1">
+              <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 font-medium">
+                📍 {persona.place || persona.location}
+              </span>
+              <span className={`px-3 py-1 rounded-full border font-semibold ${
+                persona.gender === 'Female'
+                  ? 'bg-rose-500/10 text-rose-300 border-rose-500/20'
+                  : 'bg-blue-500/10 text-blue-300 border-blue-500/20'
+              }`}>
+                {persona.gender}
+              </span>
+            </div>
           </div>
         )}
 

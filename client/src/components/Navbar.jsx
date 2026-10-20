@@ -6,7 +6,7 @@ import { useSocket } from '../context/SocketContext';
 
 export default function Navbar() {
   const location = useLocation();
-  const { isAgeVerified, isOwnerLoggedIn } = useAuth();
+  const { isAgeVerified, isOwnerLoggedIn, visitorName, visitorAvatar } = useAuth();
   const { isConnected } = useSocket();
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -84,12 +84,28 @@ export default function Navbar() {
           })}
         </nav>
 
-        {/* Right Action: Status indicator */}
+        {/* Right Action: Status indicator & Visitor Avatar */}
         <div className="flex items-center gap-2.5">
+          {visitorName && (
+            <Link
+              to="/profile"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-pink-500/10 border border-pink-500/20 text-xs text-white hover:bg-pink-500/20 transition-all"
+            >
+              {visitorAvatar ? (
+                <img src={visitorAvatar} alt={visitorName} className="w-5 h-5 rounded-full object-cover" />
+              ) : (
+                <User className="w-3.5 h-3.5 text-pink-400" />
+              )}
+              <span className="font-semibold text-pink-300 max-w-[80px] sm:max-w-[120px] truncate">
+                {visitorName}
+              </span>
+            </Link>
+          )}
+
           {/* Connection pulse */}
           <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/10">
             <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-            <span>{isConnected ? 'Live' : 'Connecting'}</span>
+            <span className="hidden sm:inline">{isConnected ? 'Live' : 'Connecting'}</span>
           </div>
         </div>
       </div>
