@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Flame, MessageCircle, User, ShieldCheck, Lock } from 'lucide-react';
+import { Flame, MessageCircle, User, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function BottomNav() {
@@ -11,7 +11,6 @@ export default function BottomNav() {
     { label: 'Chats', path: '/chats', icon: MessageCircle },
     { label: 'My Vibe', path: '/profile', icon: User },
     { label: 'Terms', path: '/terms', icon: ShieldCheck },
-    { label: 'Owner', path: '/owner/inbox', icon: Lock },
   ];
 
   return (

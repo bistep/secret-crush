@@ -43,11 +43,7 @@ export default function ProfileCard({ profile }) {
         {/* Gradient Overlay for text contrast */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#130F21] via-transparent to-black/30" />
 
-        {/* Virtual Demo Persona Badge */}
-        <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] text-pink-300 font-medium">
-          <Sparkles className="w-3 h-3 text-pink-400" />
-          <span>Virtual Persona</span>
-        </div>
+
 
         {/* Favorite Heart Button */}
         <button

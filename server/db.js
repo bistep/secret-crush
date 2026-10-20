@@ -441,7 +441,8 @@ class Database {
     return this.data.messages.filter(m => m.conversationId === conversationId);
   }
 
-  addMessage({ conversationId, visitorId, personaId, sender, content }) {
+  addMessage({ conversationId, visitorId, personaId, sender, content, type = 'text' }) {
+    const isImage = type === 'image' || (typeof content === 'string' && content.startsWith('data:image/'));
     const message = {
       id: uuidv4(),
       conversationId,
@@ -449,6 +450,7 @@ class Database {
       personaId,
       sender, // 'visitor' or 'owner'
       content: content.trim(),
+      type: isImage ? 'image' : 'text',
       createdAt: new Date().toISOString(),
       isRead: false
     };
@@ -459,7 +461,7 @@ class Database {
     const conv = this.data.conversations[conversationId];
     if (conv) {
       conv.updatedAt = message.createdAt;
-      conv.lastMessage = message.content;
+      conv.lastMessage = isImage ? '📷 Photo' : message.content;
       conv.lastMessageAt = message.createdAt;
       conv.lastSender = sender;
       if (sender === 'visitor') {

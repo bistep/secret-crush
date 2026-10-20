@@ -6,7 +6,6 @@ import ProfileCard from '../components/ProfileCard';
 import FilterBar from '../components/FilterBar';
 import AgeFilter, { AGE_RANGES } from '../components/AgeFilter';
 import AgeVerificationModal from '../components/AgeVerificationModal';
-import HonestDisclosureBanner from '../components/HonestDisclosureBanner';
 
 export default function HomePage() {
   const { isAgeVerified, preference: userPreference, favorites } = useAuth();
@@ -84,9 +83,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen pb-24 md:pb-16 bg-[#0A0812]">
-      {/* Honest Transparency Banner */}
-      <HonestDisclosureBanner />
-
       {/* Mandatory 20+ Age Verification Modal */}
       <AgeVerificationModal isOpen={!isAgeVerified} />
 

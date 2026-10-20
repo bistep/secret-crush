@@ -69,29 +69,31 @@ export function SocketProvider({ children }) {
     }
   };
 
-  const sendMessage = (personaId, content) => {
+  const sendMessage = (personaId, content, type = 'text') => {
     if (socket && isConnected) {
       socket.emit('visitor:send_message', {
         visitorId,
         personaId,
-        content
+        content,
+        type
       });
     } else {
       // Fallback to REST
       fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visitorId, personaId, content })
+        body: JSON.stringify({ visitorId, personaId, content, type })
       }).catch(err => console.log('Message send fallback:', err.message));
     }
   };
 
-  const sendOwnerReply = (targetVisitorId, personaId, content) => {
+  const sendOwnerReply = (targetVisitorId, personaId, content, type = 'text') => {
     if (socket && isConnected) {
       socket.emit('owner:send_reply', {
         visitorId: targetVisitorId,
         personaId,
-        content
+        content,
+        type
       });
     } else {
       fetch('/api/owner/reply', {
@@ -102,7 +104,8 @@ export function SocketProvider({ children }) {
         },
         body: JSON.stringify({
           conversationId: `${targetVisitorId}_${personaId}`,
-          content
+          content,
+          type
         })
       }).catch(err => console.log('Owner reply fallback:', err.message));
     }

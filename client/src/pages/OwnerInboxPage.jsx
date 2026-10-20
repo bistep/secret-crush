@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Lock, MessageSquare, Send, Search, Users, CircleDot,
   Volume2, VolumeX, Shield, Sparkles, RefreshCw, LogOut,
-  Clock, CheckCheck, Bot, ToggleLeft, ToggleRight, ArrowRight
+  Clock, CheckCheck, Bot, ToggleLeft, ToggleRight, ArrowRight, Image as ImageIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -12,8 +12,8 @@ export default function OwnerInboxPage() {
   const { socket, sendOwnerReply, playSoundAlert } = useSocket();
 
   // Auth form state
-  const [username, setUsername] = useState('owner');
-  const [password, setPassword] = useState('secretcrush2026');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
@@ -31,6 +31,7 @@ export default function OwnerInboxPage() {
 
   const messagesEndRef = useRef(null);
   const replyInputRef = useRef(null);
+  const ownerFileInputRef = useRef(null);
 
   // Fetch all conversations for owner
   const fetchConversations = async () => {
@@ -198,11 +199,27 @@ export default function OwnerInboxPage() {
     const content = replyText.trim();
     setReplyText('');
 
-    sendOwnerReply(visitorId, personaId, content);
+    sendOwnerReply(visitorId, personaId, content, 'text');
 
     if (replyInputRef.current) {
       replyInputRef.current.focus();
     }
+  };
+
+  const handleOwnerImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeConversationData) return;
+
+    const { visitorId, personaId } = activeConversationData.conversation;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Image = event.target?.result;
+      if (typeof base64Image === 'string') {
+        sendOwnerReply(visitorId, personaId, base64Image, 'image');
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const handleQuickReply = (text) => {
@@ -286,11 +303,6 @@ export default function OwnerInboxPage() {
               {authLoading ? 'Verifying...' : 'Access Owner Inbox'}
             </button>
           </form>
-
-          <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-[11px] text-slate-400">
-            Default credentials for local testing: <br />
-            Username: <strong className="text-white">owner</strong> &bull; Password: <strong className="text-white">secretcrush2026</strong>
-          </div>
         </div>
       </div>
     );
@@ -567,7 +579,15 @@ export default function OwnerInboxPage() {
                             : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-tr-none shadow-md shadow-purple-600/20'
                         }`}
                       >
-                        <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                        {msg.type === 'image' || (typeof msg.content === 'string' && msg.content.startsWith('data:image/')) ? (
+                          <img
+                            src={msg.content}
+                            alt="Shared"
+                            className="rounded-xl max-h-64 sm:max-h-72 w-full object-cover border border-white/10"
+                          />
+                        ) : (
+                          <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                        )}
                       </div>
                     </div>
                   );
@@ -609,7 +629,22 @@ export default function OwnerInboxPage() {
 
               {/* Owner Reply Box */}
               <div className="p-3 sm:p-4 bg-[#120E22] border-t border-purple-900/40">
+                <input
+                  type="file"
+                  ref={ownerFileInputRef}
+                  onChange={handleOwnerImageUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
                 <form onSubmit={handleSendReply} className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => ownerFileInputRef.current?.click()}
+                    className="p-3 rounded-2xl bg-white/5 hover:bg-pink-500/20 border border-purple-900/40 text-slate-400 hover:text-pink-400 transition-colors"
+                    title="Send image"
+                  >
+                    <ImageIcon className="w-5 h-5" />
+                  </button>
                   <input
                     ref={replyInputRef}
                     type="text"

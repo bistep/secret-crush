@@ -84,27 +84,13 @@ export default function Navbar() {
           })}
         </nav>
 
-        {/* Right Action: Status & Owner Inbox Link */}
+        {/* Right Action: Status indicator */}
         <div className="flex items-center gap-2.5">
           {/* Connection pulse */}
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/10">
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/10">
             <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
             <span>{isConnected ? 'Live' : 'Connecting'}</span>
           </div>
-
-          {/* Owner Dashboard link */}
-          <Link
-            to="/owner/inbox"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-              location.pathname.startsWith('/owner')
-                ? 'bg-purple-600 text-white border-purple-400 shadow-md shadow-purple-500/20'
-                : 'bg-purple-950/40 text-purple-300 border-purple-800/50 hover:bg-purple-900/50'
-            }`}
-            title="Website Owner Inbox"
-          >
-            <Lock className="w-3.5 h-3.5 text-purple-400" />
-            <span className="hidden sm:inline">Owner</span> Inbox
-          </Link>
         </div>
       </div>
     </header>

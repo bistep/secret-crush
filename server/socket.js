@@ -107,7 +107,7 @@ export function setupSocket(io) {
     });
 
     // --- Visitor Sends Message to Persona ---
-    socket.on('visitor:send_message', async ({ visitorId, personaId, content }) => {
+    socket.on('visitor:send_message', async ({ visitorId, personaId, content, type }) => {
       if (!visitorId || !personaId || !content || !content.trim()) return;
 
       // Check if blocked
@@ -125,7 +125,8 @@ export function setupSocket(io) {
         visitorId,
         personaId,
         sender: 'visitor',
-        content
+        content,
+        type: type || 'text'
       });
 
       // Deliver to visitor's conversation room
@@ -190,7 +191,7 @@ export function setupSocket(io) {
     });
 
     // --- Owner Sends Reply to Visitor ---
-    socket.on('owner:send_reply', ({ visitorId, personaId, content }) => {
+    socket.on('owner:send_reply', ({ visitorId, personaId, content, type }) => {
       if (!isOwner && activeOwnerSockets.size === 0) {
         // Allow if authenticated
       }
@@ -204,7 +205,8 @@ export function setupSocket(io) {
         visitorId,
         personaId,
         sender: 'owner',
-        content
+        content,
+        type: type || 'text'
       });
 
       // Deliver reply to visitor's conversation
