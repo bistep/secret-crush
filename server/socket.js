@@ -235,7 +235,24 @@ export function setupSocket(io) {
             return; // Owner replied manually
           }
 
-          const replyText = getCasualReply(content, persona?.name, ownerSettings.customAutoReplies);
+          // Sequential Auto-Reply Engine:
+          // Match 1st reply to 1st visitor message, 2nd reply to 2nd visitor message, etc.
+          const visitorMessages = currentMessages.filter(m => m.sender === 'visitor');
+          const stepIndex = Math.max(0, visitorMessages.length - 1);
+
+          let replyText = '';
+          const seq = ownerSettings.autoReplySequence || [];
+          if (Array.isArray(seq) && seq.length > 0) {
+            if (stepIndex < seq.length) {
+              replyText = seq[stepIndex];
+            } else {
+              replyText = seq[seq.length - 1];
+            }
+          }
+
+          if (!replyText) {
+            replyText = getCasualReply(content, persona?.name, ownerSettings.customAutoReplies);
+          }
           const autoMsg = db.addMessage({
             conversationId: convId,
             visitorId,

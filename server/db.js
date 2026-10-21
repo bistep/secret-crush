@@ -33,6 +33,10 @@ class Database {
         displayName: 'Secret Crush Operator & Concierge',
         autoReplyEnabled: true,
         autoReplyDelaySec: 6,
+        autoReplySequence: [
+          "Hi! 😊 Enthokkeyund vishesham?",
+          "Njan Kerala thanneya 😊 Thaan evidunnanu? 🌴"
+        ],
         customAutoReplies: [
           { id: '1', trigger: 'hi', response: 'Hi! Enthokkeyund vishesham? 😊' },
           { id: '2', trigger: 'evideya', response: 'Njan Kerala thanneya 😊 Thaan evidunnanu?' },

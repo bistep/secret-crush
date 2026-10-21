@@ -27,14 +27,19 @@ export default function OwnerInboxPage() {
   const [replyText, setReplyText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState('all'); // 'all', 'unread', 'online'
-  const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [loadingConv, setLoadingConv] = useState(false);
   const [visitorTyping, setVisitorTyping] = useState(false);
 
-  // Auto-Reply Settings & Custom Rules
+  // Auto-Reply Settings & Sequential Messages
   const [showAutoReplyModal, setShowAutoReplyModal] = useState(false);
   const [autoReplyDelaySec, setAutoReplyDelaySec] = useState(6);
+  const [autoReplySequence, setAutoReplySequence] = useState([
+    "Hi! 😊 Enthokkeyund vishesham?",
+    "Njan Kerala thanneya 😊 Thaan evidunnanu? 🌴"
+  ]);
+  const [newSequenceText, setNewSequenceText] = useState('');
   const [customRules, setCustomRules] = useState([]);
   const [savingSettings, setSavingSettings] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -101,6 +106,7 @@ export default function OwnerInboxPage() {
           if (data.autoReplyEnabled !== undefined) setAutoReplyEnabled(data.autoReplyEnabled);
           if (data.autoReplyDelaySec !== undefined) setAutoReplyDelaySec(data.autoReplyDelaySec);
           if (Array.isArray(data.customAutoReplies)) setCustomRules(data.customAutoReplies);
+          if (Array.isArray(data.autoReplySequence)) setAutoReplySequence(data.autoReplySequence);
         })
         .catch(() => {});
     }
@@ -259,6 +265,7 @@ export default function OwnerInboxPage() {
         body: JSON.stringify({
           autoReplyEnabled,
           autoReplyDelaySec: Number(autoReplyDelaySec) || 6,
+          autoReplySequence,
           customAutoReplies: customRules
         })
       });
@@ -268,6 +275,53 @@ export default function OwnerInboxPage() {
       alert('Failed to save settings');
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  // Add sequential message to auto-reply list
+  const handleAddSequenceMsg = async (e) => {
+    if (e) e.preventDefault();
+    const text = newSequenceText.trim();
+    if (!text) return;
+
+    const updatedSeq = [...autoReplySequence, text];
+    setAutoReplySequence(updatedSeq);
+    setNewSequenceText('');
+
+    try {
+      await fetch('/api/owner/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-owner-token': ownerToken
+        },
+        body: JSON.stringify({ autoReplySequence: updatedSeq })
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
+    } catch (err) {
+      console.error('Failed to save sequence message', err);
+    }
+  };
+
+  // Delete sequential message from auto-reply list
+  const handleDeleteSequenceMsg = async (indexToDelete) => {
+    const updatedSeq = autoReplySequence.filter((_, idx) => idx !== indexToDelete);
+    setAutoReplySequence(updatedSeq);
+
+    try {
+      await fetch('/api/owner/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-owner-token': ownerToken
+        },
+        body: JSON.stringify({ autoReplySequence: updatedSeq })
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
+    } catch (err) {
+      console.error('Failed to delete sequence message', err);
     }
   };
 
@@ -570,14 +624,12 @@ export default function OwnerInboxPage() {
 
           {/* Custom Auto-Replies Config Button */}
           <button
-            onClick={() => {
-              setSelectedConvId(null);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/50 text-xs font-bold transition-all shadow-sm cursor-pointer"
+            onClick={() => setShowAutoReplyModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border border-purple-400/50 text-xs font-bold transition-all shadow-md shadow-purple-600/30 cursor-pointer"
             title="Open Customize Auto-Reply Chat panel"
           >
-            <Sliders className="w-3.5 h-3.5 text-purple-300" />
-            <span>Customize Auto-Replies</span>
+            <Sliders className="w-3.5 h-3.5 text-pink-200" />
+            <span>Customize Auto-Reply</span>
           </button>
 
           {/* Logout button */}
@@ -1060,6 +1112,78 @@ export default function OwnerInboxPage() {
                   </div>
                 </div>
 
+                {/* Sequential Auto-Reply Builder */}
+                <div className="p-5 rounded-2xl bg-[#130E24] border border-purple-900/40 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-purple-300 flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4" />
+                        <span>Sequential Auto-Replies ({autoReplySequence.length} Messages)</span>
+                      </h3>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Messages are sent sequentially: 1st message to 1st visitor chat, 2nd message to 2nd visitor chat, etc.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {autoReplySequence.length === 0 ? (
+                      <div className="p-6 text-center text-slate-500 text-xs rounded-xl bg-black/20 border border-dashed border-white/10">
+                        No sequential auto-replies configured yet. Type a message below to set Reply #1.
+                      </div>
+                    ) : (
+                      autoReplySequence.map((msg, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-start justify-between gap-3 p-3.5 rounded-2xl bg-[#19142D] border border-purple-900/50 hover:border-purple-600/40 transition-colors shadow-sm"
+                        >
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <span className="shrink-0 px-2.5 py-1 rounded-lg bg-pink-500/20 text-pink-300 border border-pink-500/30 font-bold text-xs">
+                              #{idx + 1} {idx === 0 ? '1st Reply' : idx === 1 ? '2nd Reply' : idx === 2 ? '3rd Reply' : `${idx + 1}th Reply`}
+                            </span>
+                            <p className="text-sm text-white leading-relaxed break-words whitespace-pre-wrap pt-0.5">
+                              {msg}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSequenceMsg(idx)}
+                            className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/25 text-rose-300 border border-rose-500/20 transition-colors shrink-0"
+                            title="Delete this auto-reply message"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Add sequence message typing form */}
+                  <form onSubmit={handleAddSequenceMsg} className="p-4 rounded-2xl bg-[#19142D] border border-purple-500/40 space-y-2.5 shadow-sm">
+                    <label className="block text-xs font-bold text-purple-200 flex items-center gap-1.5">
+                      <Plus className="w-3.5 h-3.5 text-pink-400" />
+                      <span>Type message to set as Reply #{autoReplySequence.length + 1}:</span>
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={newSequenceText}
+                        onChange={(e) => setNewSequenceText(e.target.value)}
+                        placeholder="Type auto-reply message here and press Set/Send..."
+                        className="flex-1 py-2.5 px-3.5 rounded-xl bg-black/40 border border-white/10 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!newSequenceText.trim()}
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-bold shadow-md shadow-purple-600/30 flex items-center justify-center gap-1.5 disabled:opacity-40 transition-all cursor-pointer shrink-0"
+                      >
+                        <span>Set as Reply #{autoReplySequence.length + 1}</span>
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
                 {/* Rules Manager */}
                 <div className="p-5 rounded-2xl bg-[#130E24] border border-purple-900/40 shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
@@ -1247,24 +1371,24 @@ export default function OwnerInboxPage() {
           </div>
         </div>
       )}
-      {/* Custom Auto-Reply Rules Modal */}
+      {/* Custom Sequential Auto-Reply Modal */}
       {showAutoReplyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#130E22] border border-purple-500/40 rounded-3xl p-6 shadow-2xl flex flex-col text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#130E22] border border-purple-500/50 rounded-3xl p-6 shadow-2xl flex flex-col text-white">
             {/* Header */}
             <div className="flex items-center justify-between pb-4 border-b border-purple-900/40 shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-purple-600/25 border border-purple-500/40 text-purple-300 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-600 text-white flex items-center justify-center shadow-md shadow-purple-600/30">
                   <Sliders className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-white">Custom Auto-Reply Manager</h3>
-                  <p className="text-[11px] text-slate-400">Configure keyword triggers, typing speed, and customizable auto-replies</p>
+                  <h3 className="font-bold text-base text-white">Sequential Auto-Reply Bot Customizer</h3>
+                  <p className="text-[11px] text-slate-400">Type &amp; set sequential replies sent automatically when visitors chat</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowAutoReplyModal(false)}
-                className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
+                className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1272,102 +1396,128 @@ export default function OwnerInboxPage() {
 
             {/* Content Scroll */}
             <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
-              {/* Global Settings */}
+              {/* Quick Status & Delay Bar */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs">
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">
-                    Auto-Reply Status
+                    Auto-Reply Bot Status
                   </label>
                   <button
                     type="button"
-                    onClick={() => setAutoReplyEnabled(!autoReplyEnabled)}
+                    onClick={() => {
+                      const next = !autoReplyEnabled;
+                      setAutoReplyEnabled(next);
+                      fetch('/api/owner/settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-owner-token': ownerToken },
+                        body: JSON.stringify({ autoReplyEnabled: next })
+                      }).catch(() => {});
+                    }}
                     className={`w-full py-2 px-3 rounded-xl border flex items-center justify-between font-bold text-xs transition-all ${
                       autoReplyEnabled
-                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
                         : 'bg-white/5 text-slate-400 border-white/10'
                     }`}
                   >
-                    <span>{autoReplyEnabled ? '🟢 Enabled (Replies when away)' : '⚪ Disabled'}</span>
+                    <span>{autoReplyEnabled ? '🟢 Default ON (Bot Responding)' : '⚪ Paused'}</span>
                     <Bot className="w-4 h-4" />
                   </button>
                 </div>
 
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">
-                    Typing Delay (Seconds)
+                    Human Typing Delay (Seconds)
                   </label>
-                  <input
-                    type="number"
-                    min="2"
-                    max="30"
-                    value={autoReplyDelaySec}
-                    onChange={(e) => setAutoReplyDelaySec(e.target.value)}
-                    className="w-full py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-purple-500"
-                  />
-                  <span className="text-[10px] text-slate-400 mt-1 block">Realistic time to type before sending reply</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="2"
+                      max="30"
+                      value={autoReplyDelaySec}
+                      onChange={(e) => setAutoReplyDelaySec(e.target.value)}
+                      className="w-24 py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-purple-500"
+                    />
+                    <span className="text-[11px] text-slate-400">Wait time with live typing animation</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Rules List */}
-              <div className="space-y-3">
+              {/* Explanatory Banner */}
+              <div className="p-3 rounded-2xl bg-purple-950/40 border border-purple-500/30 text-xs text-purple-200 flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-pink-400 shrink-0 mt-0.5" />
+                <div className="text-[11px] leading-relaxed">
+                  <strong>Sequential Order:</strong> When a client sends their 1st message, the bot waits {autoReplyDelaySec || 6}s and replies with <strong>Reply #1</strong>. When they reply again (2nd message), the bot sends <strong>Reply #2</strong>, and so on!
+                </div>
+              </div>
+
+              {/* Sequential Messages List */}
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
                     <MessageSquare className="w-3.5 h-3.5" />
-                    <span>Auto-Reply Rules ({customRules.length})</span>
+                    <span>Auto-Reply Sequence ({autoReplySequence.length} Messages)</span>
                   </span>
-                  <button
-                    type="button"
-                    onClick={handleAddRule}
-                    className="px-2.5 py-1 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 text-xs font-bold flex items-center gap-1"
-                  >
-                    <Plus className="w-3 h-3" />
-                    <span>Add Rule</span>
-                  </button>
+                  <span className="text-[10px] text-slate-400">Order: Top to bottom</span>
                 </div>
 
-                {customRules.map((rule, idx) => (
-                  <div
-                    key={rule.id || idx}
-                    className="p-3.5 rounded-2xl bg-[#181329] border border-purple-900/50 space-y-2.5 shadow-sm"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex-1">
-                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                          If Visitor Says (keyword or <code className="text-pink-300">*</code> for any message):
-                        </label>
-                        <input
-                          type="text"
-                          value={rule.trigger}
-                          onChange={(e) => handleUpdateRule(rule.id, 'trigger', e.target.value)}
-                          placeholder="e.g. hi, hello, or *"
-                          className="w-full py-1.5 px-3 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
-                        />
+                {autoReplySequence.length === 0 ? (
+                  <div className="p-6 text-center text-slate-400 text-xs rounded-2xl bg-white/5 border border-dashed border-white/15">
+                    No sequential auto-replies configured yet. Type a message below to set your 1st auto-reply!
+                  </div>
+                ) : (
+                  autoReplySequence.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-start justify-between gap-3 p-3.5 rounded-2xl bg-[#181329] border border-purple-900/50 hover:border-purple-500/40 transition-colors shadow-sm"
+                    >
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <span className="shrink-0 px-2.5 py-1 rounded-lg bg-pink-500/20 text-pink-300 border border-pink-500/30 font-bold text-[11px]">
+                          #{idx + 1} {idx === 0 ? '1st Reply' : idx === 1 ? '2nd Reply' : idx === 2 ? '3rd Reply' : `${idx + 1}th Reply`}
+                        </span>
+                        <p className="text-xs sm:text-sm text-white leading-relaxed break-words whitespace-pre-wrap pt-0.5">
+                          {msg}
+                        </p>
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleDeleteRule(rule.id)}
-                        className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 transition-colors self-end"
-                        title="Delete this rule"
+                        onClick={() => handleDeleteSequenceMsg(idx)}
+                        className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/25 text-rose-300 border border-rose-500/25 transition-colors shrink-0"
+                        title="Delete this auto-reply message"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                        Auto-Reply Response Message:
-                      </label>
-                      <textarea
-                        rows="2"
-                        value={rule.response}
-                        onChange={(e) => handleUpdateRule(rule.id, 'response', e.target.value)}
-                        placeholder="Type the message to send automatically..."
-                        className="w-full py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500 resize-none"
-                      />
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
+
+              {/* Typing Area to add next message */}
+              <form onSubmit={handleAddSequenceMsg} className="p-4 rounded-2xl bg-[#191330] border border-purple-500/40 space-y-2.5 shadow-lg">
+                <label className="block text-xs font-bold text-purple-200 flex items-center gap-1.5">
+                  <Plus className="w-3.5 h-3.5 text-pink-400" />
+                  <span>Type message to set as Reply #{autoReplySequence.length + 1}:</span>
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={newSequenceText}
+                    onChange={(e) => setNewSequenceText(e.target.value)}
+                    placeholder="Type auto-reply message here and press Set/Send..."
+                    className="flex-1 py-2.5 px-3.5 rounded-xl bg-black/40 border border-white/15 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newSequenceText.trim()}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-bold shadow-md shadow-purple-600/30 flex items-center justify-center gap-1.5 disabled:opacity-40 transition-all cursor-pointer shrink-0"
+                  >
+                    <span>Set as Reply #{autoReplySequence.length + 1}</span>
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Each message you type and submit here automatically becomes the next reply in the bot sequence.
+                </p>
+              </form>
             </div>
 
             {/* Footer */}
@@ -1375,11 +1525,11 @@ export default function OwnerInboxPage() {
               {saveSuccess ? (
                 <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
                   <Check className="w-4 h-4 text-emerald-400" />
-                  <span>Settings saved successfully!</span>
+                  <span>Auto-reply settings saved!</span>
                 </span>
               ) : (
                 <span className="text-[11px] text-slate-400">
-                  Settings are saved permanently to your server.
+                  Settings are active live on your server.
                 </span>
               )}
 
