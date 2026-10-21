@@ -54,6 +54,26 @@ class Database {
         const parsed = JSON.parse(raw);
         this.data = { ...this.data, ...parsed };
       }
+      if (this.data.owner) {
+        if (this.data.owner.autoReplyEnabled === undefined) {
+          this.data.owner.autoReplyEnabled = true;
+        }
+        if (!Array.isArray(this.data.owner.replies)) {
+          if (Array.isArray(this.data.owner.autoReplySequence) && this.data.owner.autoReplySequence.length > 0) {
+            this.data.owner.replies = this.data.owner.autoReplySequence.map((text, idx) => ({
+              id: `reply-${idx + 1}`,
+              text,
+              sequence: idx + 1,
+              enabled: true
+            }));
+          } else {
+            this.data.owner.replies = [
+              { id: 'reply-1', text: 'Hi! 😊 Enthokkeyund vishesham?', sequence: 1, enabled: true },
+              { id: 'reply-2', text: 'Njan Kerala thanneya 😊 Thaan evidunnanu? 🌴', sequence: 2, enabled: true }
+            ];
+          }
+        }
+      }
       // Populate/sync with all 108 Kerala game-style avatar personas
       this.data.personas = {};
       INITIAL_PERSONAS.forEach(p => {
@@ -397,7 +417,7 @@ class Database {
     return (this.data.blocks[visitorId] || []).includes(personaId);
   }
 
-  // --- Owner Settings ---
+  // --- Owner Settings & Custom Replies ---
   getOwnerSettings() {
     return this.data.owner;
   }
@@ -406,6 +426,64 @@ class Database {
     this.data.owner = { ...this.data.owner, ...updates };
     this.save();
     return this.data.owner;
+  }
+
+  getReplies() {
+    if (!Array.isArray(this.data.owner.replies)) {
+      this.data.owner.replies = [];
+    }
+    return this.data.owner.replies.sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+  }
+
+  addReply(text) {
+    if (!text || !text.trim()) {
+      throw new Error('Reply text cannot be empty');
+    }
+    const replies = this.getReplies();
+    if (replies.length >= 10) {
+      throw new Error('Maximum 10 replies allowed');
+    }
+    const newReply = {
+      id: 'reply_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      text: text.trim(),
+      sequence: replies.length + 1,
+      enabled: true
+    };
+    replies.push(newReply);
+    this.data.owner.replies = replies;
+    this.data.owner.autoReplySequence = replies.map(r => r.text);
+    this.save();
+    return newReply;
+  }
+
+  updateReply(id, text) {
+    if (!text || !text.trim()) {
+      throw new Error('Reply text cannot be empty');
+    }
+    const replies = this.getReplies();
+    const item = replies.find(r => r.id === id);
+    if (!item) {
+      throw new Error('Reply not found');
+    }
+    item.text = text.trim();
+    this.data.owner.replies = replies;
+    this.data.owner.autoReplySequence = replies.map(r => r.text);
+    this.save();
+    return item;
+  }
+
+  deleteReply(id) {
+    let replies = this.getReplies();
+    const exists = replies.some(r => r.id === id);
+    if (!exists) return false;
+    replies = replies.filter(r => r.id !== id);
+    replies.forEach((r, idx) => {
+      r.sequence = idx + 1;
+    });
+    this.data.owner.replies = replies;
+    this.data.owner.autoReplySequence = replies.map(r => r.text);
+    this.save();
+    return true;
   }
 
   validateOwnerCredentials(username, password) {

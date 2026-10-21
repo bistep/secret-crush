@@ -4,7 +4,7 @@ import {
   Volume2, VolumeX, Shield, Sparkles, RefreshCw, LogOut,
   Clock, CheckCheck, Bot, ToggleLeft, ToggleRight, ArrowRight,
   Image as ImageIcon, Download, Trash2, UserCheck, ChevronDown, Video, AlertCircle, X,
-  Sliders, Plus, Check
+  Sliders, Plus, Check, Edit3
 } from 'lucide-react';
 import { DEMO_PROFILES } from '../data/profiles';
 import { useAuth } from '../context/AuthContext';
@@ -32,14 +32,16 @@ export default function OwnerInboxPage() {
   const [loadingConv, setLoadingConv] = useState(false);
   const [visitorTyping, setVisitorTyping] = useState(false);
 
-  // Auto-Reply Settings & Sequential Messages
+  // Auto-Reply Settings & Custom Replies Manager
   const [showAutoReplyModal, setShowAutoReplyModal] = useState(false);
   const [autoReplyDelaySec, setAutoReplyDelaySec] = useState(6);
-  const [autoReplySequence, setAutoReplySequence] = useState([
-    "Hi! 😊 Enthokkeyund vishesham?",
-    "Njan Kerala thanneya 😊 Thaan evidunnanu? 🌴"
+  const [replies, setReplies] = useState([
+    { id: 'reply-1', text: 'Hi! 😊 Enthokkeyund vishesham?', sequence: 1, enabled: true },
+    { id: 'reply-2', text: 'Njan Kerala thanneya 😊 Thaan evidunnanu? 🌴', sequence: 2, enabled: true }
   ]);
-  const [newSequenceText, setNewSequenceText] = useState('');
+  const [replyInputText, setReplyInputText] = useState('');
+  const [editingReplyId, setEditingReplyId] = useState(null);
+  const [validationError, setValidationError] = useState('');
   const [customRules, setCustomRules] = useState([]);
   const [savingSettings, setSavingSettings] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -93,10 +95,28 @@ export default function OwnerInboxPage() {
     }
   };
 
+  // Fetch custom auto-replies
+  const fetchReplies = async () => {
+    if (!ownerToken) return;
+    try {
+      const res = await fetch(`/api/owner/replies?token=${encodeURIComponent(ownerToken)}`, {
+        headers: { 'x-owner-token': ownerToken }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.replies)) setReplies(data.replies);
+        if (data.autoReplyEnabled !== undefined) setAutoReplyEnabled(data.autoReplyEnabled);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Initial fetch on login
   useEffect(() => {
     if (isOwnerLoggedIn && ownerToken) {
       fetchConversations();
+      fetchReplies();
       // Fetch settings & custom auto-reply rules
       fetch(`/api/owner/settings?token=${encodeURIComponent(ownerToken)}`, {
         headers: { 'x-owner-token': ownerToken }
@@ -106,7 +126,7 @@ export default function OwnerInboxPage() {
           if (data.autoReplyEnabled !== undefined) setAutoReplyEnabled(data.autoReplyEnabled);
           if (data.autoReplyDelaySec !== undefined) setAutoReplyDelaySec(data.autoReplyDelaySec);
           if (Array.isArray(data.customAutoReplies)) setCustomRules(data.customAutoReplies);
-          if (Array.isArray(data.autoReplySequence)) setAutoReplySequence(data.autoReplySequence);
+          if (Array.isArray(data.replies)) setReplies(data.replies);
         })
         .catch(() => {});
     }
@@ -265,7 +285,7 @@ export default function OwnerInboxPage() {
         body: JSON.stringify({
           autoReplyEnabled,
           autoReplyDelaySec: Number(autoReplyDelaySec) || 6,
-          autoReplySequence,
+          replies,
           customAutoReplies: customRules
         })
       });
@@ -278,50 +298,106 @@ export default function OwnerInboxPage() {
     }
   };
 
-  // Add sequential message to auto-reply list
-  const handleAddSequenceMsg = async (e) => {
+  // Add or Edit Reply in the Auto-Reply Customizer
+  const handleAddOrEditReply = async (e) => {
     if (e) e.preventDefault();
-    const text = newSequenceText.trim();
-    if (!text) return;
+    setValidationError('');
+    const text = replyInputText.trim();
+    if (!text) {
+      setValidationError('Reply text cannot be empty.');
+      return;
+    }
 
-    const updatedSeq = [...autoReplySequence, text];
-    setAutoReplySequence(updatedSeq);
-    setNewSequenceText('');
+    if (editingReplyId) {
+      // Edit existing reply
+      try {
+        const res = await fetch(`/api/owner/replies/${encodeURIComponent(editingReplyId)}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-owner-token': ownerToken
+          },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setReplies(data.replies);
+          setReplyInputText('');
+          setEditingReplyId(null);
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 2500);
+        } else {
+          setValidationError(data.error || 'Failed to update reply');
+        }
+      } catch (err) {
+        setValidationError('Failed to update reply');
+      }
+    } else {
+      // Add new reply
+      if (replies.length >= 10) {
+        setValidationError('Maximum 10 replies allowed');
+        return;
+      }
 
-    try {
-      await fetch('/api/owner/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-owner-token': ownerToken
-        },
-        body: JSON.stringify({ autoReplySequence: updatedSeq })
-      });
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2500);
-    } catch (err) {
-      console.error('Failed to save sequence message', err);
+      try {
+        const res = await fetch('/api/owner/replies', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-owner-token': ownerToken
+          },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setReplies(data.replies);
+          setReplyInputText('');
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 2500);
+        } else {
+          setValidationError(data.error || 'Failed to add reply');
+        }
+      } catch (err) {
+        setValidationError('Failed to add reply');
+      }
     }
   };
 
-  // Delete sequential message from auto-reply list
-  const handleDeleteSequenceMsg = async (indexToDelete) => {
-    const updatedSeq = autoReplySequence.filter((_, idx) => idx !== indexToDelete);
-    setAutoReplySequence(updatedSeq);
+  const handleStartEdit = (reply) => {
+    setEditingReplyId(reply.id);
+    setReplyInputText(reply.text);
+    setValidationError('');
+  };
 
+  const handleCancelEdit = () => {
+    setEditingReplyId(null);
+    setReplyInputText('');
+    setValidationError('');
+  };
+
+  const handleDeleteReply = async (replyId) => {
+    if (!window.confirm('Delete this auto-reply message?')) {
+      return;
+    }
+    setValidationError('');
     try {
-      await fetch('/api/owner/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-owner-token': ownerToken
-        },
-        body: JSON.stringify({ autoReplySequence: updatedSeq })
+      const res = await fetch(`/api/owner/replies/${encodeURIComponent(replyId)}`, {
+        method: 'DELETE',
+        headers: { 'x-owner-token': ownerToken }
       });
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2500);
+      const data = await res.json();
+      if (res.ok) {
+        setReplies(data.replies);
+        if (editingReplyId === replyId) {
+          handleCancelEdit();
+        }
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2500);
+      } else {
+        setValidationError(data.error || 'Failed to delete reply');
+      }
     } catch (err) {
-      console.error('Failed to delete sequence message', err);
+      setValidationError('Failed to delete reply');
     }
   };
 
@@ -622,14 +698,17 @@ export default function OwnerInboxPage() {
             <strong>{autoReplyEnabled ? 'ON' : 'OFF'}</strong>
           </button>
 
-          {/* Custom Auto-Replies Config Button */}
+          {/* Customize Replies Button */}
           <button
-            onClick={() => setShowAutoReplyModal(true)}
+            onClick={() => {
+              setValidationError('');
+              setShowAutoReplyModal(true);
+            }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border border-purple-400/50 text-xs font-bold transition-all shadow-md shadow-purple-600/30 cursor-pointer"
-            title="Open Customize Auto-Reply Chat panel"
+            title="Open Customize Auto-Replies manager"
           >
             <Sliders className="w-3.5 h-3.5 text-pink-200" />
-            <span>Customize Auto-Reply</span>
+            <span>Customize Replies</span>
           </button>
 
           {/* Logout button */}
@@ -1112,72 +1191,130 @@ export default function OwnerInboxPage() {
                   </div>
                 </div>
 
-                {/* Sequential Auto-Reply Builder */}
+                {/* Customize Auto-Replies Section */}
                 <div className="p-5 rounded-2xl bg-[#130E24] border border-purple-900/40 shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-xs font-bold uppercase tracking-wider text-purple-300 flex items-center gap-2">
                         <MessageSquare className="w-4 h-4" />
-                        <span>Sequential Auto-Replies ({autoReplySequence.length} Messages)</span>
+                        <span>Customize Auto-Replies ({replies.length} / 10 Configured)</span>
                       </h3>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        Messages are sent sequentially: 1st message to 1st visitor chat, 2nd message to 2nd visitor chat, etc.
+                        Messages are delivered in sequence to each client: 1st message to 1st visitor chat, 2nd to 2nd, etc.
                       </p>
                     </div>
+                    <span className="px-3 py-1 rounded-xl bg-purple-600/25 border border-purple-500/40 text-purple-200 font-bold text-xs">
+                      {replies.length} / 10
+                    </span>
                   </div>
 
+                  {validationError && (
+                    <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-xs text-rose-300 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                      <span className="font-semibold">{validationError}</span>
+                    </div>
+                  )}
+
                   <div className="space-y-2.5">
-                    {autoReplySequence.length === 0 ? (
+                    {replies.length === 0 ? (
                       <div className="p-6 text-center text-slate-500 text-xs rounded-xl bg-black/20 border border-dashed border-white/10">
-                        No sequential auto-replies configured yet. Type a message below to set Reply #1.
+                        No custom auto-reply messages configured yet. Add your first reply below.
                       </div>
                     ) : (
-                      autoReplySequence.map((msg, idx) => (
+                      replies.map((item, idx) => (
                         <div
-                          key={idx}
-                          className="flex items-start justify-between gap-3 p-3.5 rounded-2xl bg-[#19142D] border border-purple-900/50 hover:border-purple-600/40 transition-colors shadow-sm"
+                          key={item.id || idx}
+                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#19142D] border border-purple-900/50 hover:border-purple-600/40 transition-colors shadow-sm"
                         >
                           <div className="flex items-start gap-3 flex-1 min-w-0">
                             <span className="shrink-0 px-2.5 py-1 rounded-lg bg-pink-500/20 text-pink-300 border border-pink-500/30 font-bold text-xs">
-                              #{idx + 1} {idx === 0 ? '1st Reply' : idx === 1 ? '2nd Reply' : idx === 2 ? '3rd Reply' : `${idx + 1}th Reply`}
+                              #{idx + 1}
                             </span>
-                            <p className="text-sm text-white leading-relaxed break-words whitespace-pre-wrap pt-0.5">
-                              {msg}
-                            </p>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-[10px] text-slate-400 font-semibold block mb-0.5">
+                                {idx === 0 ? '1st Reply' : idx === 1 ? '2nd Reply' : idx === 2 ? '3rd Reply' : `#${idx + 1} Reply`}
+                              </span>
+                              <p className="text-sm text-white leading-relaxed break-words whitespace-pre-wrap">
+                                {item.text}
+                              </p>
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSequenceMsg(idx)}
-                            className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/25 text-rose-300 border border-rose-500/20 transition-colors shrink-0"
-                            title="Delete this auto-reply message"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(item)}
+                              className="px-2.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/40 text-purple-200 border border-purple-500/30 text-xs font-semibold flex items-center gap-1 transition-colors"
+                              title="Edit this reply"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteReply(item.id)}
+                              className="px-2.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1 transition-colors"
+                              title="Delete this reply"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
                         </div>
                       ))
                     )}
                   </div>
 
-                  {/* Add sequence message typing form */}
-                  <form onSubmit={handleAddSequenceMsg} className="p-4 rounded-2xl bg-[#19142D] border border-purple-500/40 space-y-2.5 shadow-sm">
-                    <label className="block text-xs font-bold text-purple-200 flex items-center gap-1.5">
-                      <Plus className="w-3.5 h-3.5 text-pink-400" />
-                      <span>Type message to set as Reply #{autoReplySequence.length + 1}:</span>
-                    </label>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input
-                        type="text"
-                        value={newSequenceText}
-                        onChange={(e) => setNewSequenceText(e.target.value)}
-                        placeholder="Type auto-reply message here and press Set/Send..."
-                        className="flex-1 py-2.5 px-3.5 rounded-xl bg-black/40 border border-white/10 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
-                      />
+                  {/* Add / Edit Form */}
+                  <form onSubmit={handleAddOrEditReply} className="p-4 rounded-2xl bg-[#19142D] border border-purple-500/40 space-y-3 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-purple-200 flex items-center gap-1.5">
+                        {editingReplyId ? (
+                          <>
+                            <Edit3 className="w-3.5 h-3.5 text-pink-400" />
+                            <span>Edit Auto-Reply Message</span>
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-3.5 h-3.5 text-pink-400" />
+                            <span>Add New Auto-Reply (Reply #{replies.length + 1})</span>
+                          </>
+                        )}
+                      </label>
+                      {editingReplyId && (
+                        <button
+                          type="button"
+                          onClick={handleCancelEdit}
+                          className="text-[11px] text-slate-400 hover:text-white underline cursor-pointer"
+                        >
+                          Cancel Edit
+                        </button>
+                      )}
+                    </div>
+
+                    <textarea
+                      rows="2"
+                      value={replyInputText}
+                      onChange={(e) => {
+                        setReplyInputText(e.target.value);
+                        if (validationError) setValidationError('');
+                      }}
+                      placeholder="Type auto-reply message here..."
+                      className="w-full py-2.5 px-3.5 rounded-xl bg-black/40 border border-white/10 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-pink-500 resize-none leading-relaxed"
+                    />
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[11px] text-slate-400">
+                        {editingReplyId
+                          ? 'Editing message text.'
+                          : `${10 - replies.length} slot(s) remaining (max 10).`}
+                      </span>
+
                       <button
                         type="submit"
-                        disabled={!newSequenceText.trim()}
+                        disabled={!replyInputText.trim() || (!editingReplyId && replies.length >= 10)}
                         className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-bold shadow-md shadow-purple-600/30 flex items-center justify-center gap-1.5 disabled:opacity-40 transition-all cursor-pointer shrink-0"
                       >
-                        <span>Set as Reply #{autoReplySequence.length + 1}</span>
+                        <span>{editingReplyId ? 'Save Changes' : 'Send / Add Reply'}</span>
                         <Send className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -1371,23 +1508,26 @@ export default function OwnerInboxPage() {
           </div>
         </div>
       )}
-      {/* Custom Sequential Auto-Reply Modal */}
+      {/* Customize Auto-Replies Modal */}
       {showAutoReplyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
-          <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#130E22] border border-purple-500/50 rounded-3xl p-6 shadow-2xl flex flex-col text-white">
+          <div className="relative w-full max-w-2xl max-h-[92vh] bg-[#130E22] border border-purple-500/50 rounded-3xl p-6 shadow-2xl flex flex-col text-white">
             {/* Header */}
             <div className="flex items-center justify-between pb-4 border-b border-purple-900/40 shrink-0">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-600 text-white flex items-center justify-center shadow-md shadow-purple-600/30">
                   <Sliders className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-white">Sequential Auto-Reply Bot Customizer</h3>
-                  <p className="text-[11px] text-slate-400">Type &amp; set sequential replies sent automatically when visitors chat</p>
+                  <h3 className="font-bold text-lg text-white">Customize Auto-Replies</h3>
+                  <p className="text-[11px] text-slate-400">Configure sequential automated messages sent to incoming visitors</p>
                 </div>
               </div>
               <button
-                onClick={() => setShowAutoReplyModal(false)}
+                onClick={() => {
+                  handleCancelEdit();
+                  setShowAutoReplyModal(false);
+                }}
                 className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -1396,161 +1536,195 @@ export default function OwnerInboxPage() {
 
             {/* Content Scroll */}
             <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
-              {/* Quick Status & Delay Bar */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs">
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Auto-Reply Bot Status
-                  </label>
+              {/* Status and Active Counter Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-300 font-semibold">Auto-Reply Status:</span>
                   <button
                     type="button"
-                    onClick={() => {
-                      const next = !autoReplyEnabled;
-                      setAutoReplyEnabled(next);
-                      fetch('/api/owner/settings', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'x-owner-token': ownerToken },
-                        body: JSON.stringify({ autoReplyEnabled: next })
-                      }).catch(() => {});
-                    }}
-                    className={`w-full py-2 px-3 rounded-xl border flex items-center justify-between font-bold text-xs transition-all ${
+                    onClick={toggleAutoReply}
+                    className={`py-1.5 px-3 rounded-xl border flex items-center gap-1.5 font-bold text-xs transition-all ${
                       autoReplyEnabled
                         ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
                         : 'bg-white/5 text-slate-400 border-white/10'
                     }`}
                   >
-                    <span>{autoReplyEnabled ? '🟢 Default ON (Bot Responding)' : '⚪ Paused'}</span>
-                    <Bot className="w-4 h-4" />
+                    <span className={`w-2 h-2 rounded-full ${autoReplyEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                    <span>{autoReplyEnabled ? 'ON' : 'OFF'}</span>
                   </button>
                 </div>
 
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Human Typing Delay (Seconds)
+                <div className="flex items-center gap-2 font-mono text-xs">
+                  <span className="px-3 py-1 rounded-xl bg-purple-600/25 border border-purple-500/40 text-purple-200 font-bold">
+                    {replies.length} / 10 replies configured
+                  </span>
+                </div>
+              </div>
+
+              {/* Validation Error Banner */}
+              {validationError && (
+                <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-xs text-rose-300 flex items-center gap-2 animate-shake">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                  <span className="font-semibold">{validationError}</span>
+                </div>
+              )}
+
+              {/* Success Banner */}
+              {saveSuccess && (
+                <div className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-xs text-emerald-300 flex items-center gap-2">
+                  <Check className="w-4 h-4 shrink-0 text-emerald-400" />
+                  <span className="font-semibold">Auto-reply successfully saved to server!</span>
+                </div>
+              )}
+
+              {/* Multiline Text Input for Entering / Editing Reply */}
+              <form onSubmit={handleAddOrEditReply} className="p-4 rounded-2xl bg-[#191330] border border-purple-500/40 space-y-3 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-purple-200 flex items-center gap-1.5">
+                    {editingReplyId ? (
+                      <>
+                        <Edit3 className="w-3.5 h-3.5 text-pink-400" />
+                        <span>Edit Auto-Reply Message</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3.5 h-3.5 text-pink-400" />
+                        <span>Add New Auto-Reply (Reply #{replies.length + 1})</span>
+                      </>
+                    )}
                   </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="2"
-                      max="30"
-                      value={autoReplyDelaySec}
-                      onChange={(e) => setAutoReplyDelaySec(e.target.value)}
-                      className="w-24 py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-purple-500"
-                    />
-                    <span className="text-[11px] text-slate-400">Wait time with live typing animation</span>
-                  </div>
+                  {editingReplyId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      className="text-[11px] text-slate-400 hover:text-white underline cursor-pointer"
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
                 </div>
-              </div>
 
-              {/* Explanatory Banner */}
-              <div className="p-3 rounded-2xl bg-purple-950/40 border border-purple-500/30 text-xs text-purple-200 flex items-start gap-2.5">
-                <Sparkles className="w-4 h-4 text-pink-400 shrink-0 mt-0.5" />
-                <div className="text-[11px] leading-relaxed">
-                  <strong>Sequential Order:</strong> When a client sends their 1st message, the bot waits {autoReplyDelaySec || 6}s and replies with <strong>Reply #1</strong>. When they reply again (2nd message), the bot sends <strong>Reply #2</strong>, and so on!
+                <textarea
+                  rows="3"
+                  value={replyInputText}
+                  onChange={(e) => {
+                    setReplyInputText(e.target.value);
+                    if (validationError) setValidationError('');
+                  }}
+                  placeholder="Type auto-reply message here..."
+                  className="w-full py-2.5 px-3.5 rounded-xl bg-black/40 border border-white/15 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-pink-500 resize-none leading-relaxed"
+                />
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] text-slate-400">
+                    {editingReplyId
+                      ? 'Editing existing reply text. Order and ID are preserved.'
+                      : `${10 - replies.length} slot(s) remaining (max 10).`}
+                  </span>
+
+                  <button
+                    type="submit"
+                    disabled={!replyInputText.trim() || (!editingReplyId && replies.length >= 10)}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-bold shadow-md shadow-purple-600/30 flex items-center justify-center gap-1.5 disabled:opacity-40 transition-all cursor-pointer shrink-0"
+                  >
+                    <span>{editingReplyId ? 'Save Changes' : 'Send / Add Reply'}</span>
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-              </div>
+              </form>
 
-              {/* Sequential Messages List */}
+              {/* List of Saved Auto-Reply Messages */}
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
                     <MessageSquare className="w-3.5 h-3.5" />
-                    <span>Auto-Reply Sequence ({autoReplySequence.length} Messages)</span>
+                    <span>Saved Auto-Replies Sequence</span>
                   </span>
-                  <span className="text-[10px] text-slate-400">Order: Top to bottom</span>
+                  <span className="text-[10px] text-slate-400">Order: Top to bottom (1st message, 2nd, etc.)</span>
                 </div>
 
-                {autoReplySequence.length === 0 ? (
+                {replies.length === 0 ? (
                   <div className="p-6 text-center text-slate-400 text-xs rounded-2xl bg-white/5 border border-dashed border-white/15">
-                    No sequential auto-replies configured yet. Type a message below to set your 1st auto-reply!
+                    No custom auto-reply messages configured yet. Add your first reply above!
                   </div>
                 ) : (
-                  autoReplySequence.map((msg, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-start justify-between gap-3 p-3.5 rounded-2xl bg-[#181329] border border-purple-900/50 hover:border-purple-500/40 transition-colors shadow-sm"
-                    >
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <span className="shrink-0 px-2.5 py-1 rounded-lg bg-pink-500/20 text-pink-300 border border-pink-500/30 font-bold text-[11px]">
-                          #{idx + 1} {idx === 0 ? '1st Reply' : idx === 1 ? '2nd Reply' : idx === 2 ? '3rd Reply' : `${idx + 1}th Reply`}
-                        </span>
-                        <p className="text-xs sm:text-sm text-white leading-relaxed break-words whitespace-pre-wrap pt-0.5">
-                          {msg}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteSequenceMsg(idx)}
-                        className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/25 text-rose-300 border border-rose-500/25 transition-colors shrink-0"
-                        title="Delete this auto-reply message"
+                  replies.map((item, idx) => {
+                    const orderLabel = idx === 0
+                      ? '1st Reply (When client sends 1st message)'
+                      : idx === 1
+                      ? '2nd Reply (When client sends 2nd message)'
+                      : idx === 2
+                      ? '3rd Reply (When client sends 3rd message)'
+                      : `#${idx + 1} Reply`;
+
+                    const isBeingEdited = editingReplyId === item.id;
+
+                    return (
+                      <div
+                        key={item.id || idx}
+                        className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl border transition-all shadow-sm ${
+                          isBeingEdited
+                            ? 'bg-purple-900/30 border-pink-500/60 ring-1 ring-pink-500/30'
+                            : 'bg-[#181329] border-purple-900/50 hover:border-purple-500/40'
+                        }`}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <span className="shrink-0 px-2.5 py-1 rounded-lg bg-pink-500/20 text-pink-300 border border-pink-500/30 font-bold text-[11px]">
+                            #{idx + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[10px] text-slate-400 font-semibold block mb-0.5">
+                              {orderLabel}
+                            </span>
+                            <p className="text-xs sm:text-sm text-white leading-relaxed break-words whitespace-pre-wrap">
+                              {item.text}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Edit & Delete Action Buttons */}
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(item)}
+                            className="px-2.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/40 text-purple-200 border border-purple-500/30 text-xs font-semibold flex items-center gap-1 transition-colors"
+                            title="Edit this reply"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteReply(item.id)}
+                            className="px-2.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1 transition-colors"
+                            title="Delete this reply"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
-
-              {/* Typing Area to add next message */}
-              <form onSubmit={handleAddSequenceMsg} className="p-4 rounded-2xl bg-[#191330] border border-purple-500/40 space-y-2.5 shadow-lg">
-                <label className="block text-xs font-bold text-purple-200 flex items-center gap-1.5">
-                  <Plus className="w-3.5 h-3.5 text-pink-400" />
-                  <span>Type message to set as Reply #{autoReplySequence.length + 1}:</span>
-                </label>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    value={newSequenceText}
-                    onChange={(e) => setNewSequenceText(e.target.value)}
-                    placeholder="Type auto-reply message here and press Set/Send..."
-                    className="flex-1 py-2.5 px-3.5 rounded-xl bg-black/40 border border-white/15 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!newSequenceText.trim()}
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-bold shadow-md shadow-purple-600/30 flex items-center justify-center gap-1.5 disabled:opacity-40 transition-all cursor-pointer shrink-0"
-                  >
-                    <span>Set as Reply #{autoReplySequence.length + 1}</span>
-                    <Send className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <p className="text-[10px] text-slate-400">
-                  Each message you type and submit here automatically becomes the next reply in the bot sequence.
-                </p>
-              </form>
             </div>
 
             {/* Footer */}
             <div className="pt-4 border-t border-purple-900/40 flex items-center justify-between shrink-0">
-              {saveSuccess ? (
-                <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
-                  <Check className="w-4 h-4 text-emerald-400" />
-                  <span>Auto-reply settings saved!</span>
-                </span>
-              ) : (
-                <span className="text-[11px] text-slate-400">
-                  Settings are active live on your server.
-                </span>
-              )}
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAutoReplyModal(false)}
-                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveAutoReplySettings}
-                  disabled={savingSettings}
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-95 text-white text-xs font-bold shadow-md shadow-purple-600/30 flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>{savingSettings ? 'Saving...' : 'Save Settings'}</span>
-                </button>
-              </div>
+              <span className="text-[11px] text-slate-400">
+                All changes are stored permanently on your server.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  handleCancelEdit();
+                  setShowAutoReplyModal(false);
+                }}
+                className="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

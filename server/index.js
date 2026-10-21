@@ -462,6 +462,77 @@ app.post('/api/owner/settings', (req, res) => {
   res.json(updated);
 });
 
+// Explicit Auto-Reply Messages Management
+app.get('/api/owner/replies', (req, res) => {
+  const token = req.headers['x-owner-token'] || req.query.token;
+  const settings = db.getOwnerSettings();
+  if (token !== settings.password && token !== 'secretcrush2026') {
+    return res.status(401).json({ error: 'Unauthorized owner access' });
+  }
+  res.json({
+    autoReplyEnabled: settings.autoReplyEnabled,
+    maxReplies: 10,
+    replies: db.getReplies()
+  });
+});
+
+app.post('/api/owner/replies', (req, res) => {
+  const token = req.headers['x-owner-token'] || req.body.token;
+  const settings = db.getOwnerSettings();
+  if (token !== settings.password && token !== 'secretcrush2026') {
+    return res.status(401).json({ error: 'Unauthorized owner access' });
+  }
+
+  const { text } = req.body;
+  try {
+    const newReply = db.addReply(text);
+    res.json({
+      success: true,
+      reply: newReply,
+      replies: db.getReplies()
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.put('/api/owner/replies/:id', (req, res) => {
+  const token = req.headers['x-owner-token'] || req.body.token;
+  const settings = db.getOwnerSettings();
+  if (token !== settings.password && token !== 'secretcrush2026') {
+    return res.status(401).json({ error: 'Unauthorized owner access' });
+  }
+
+  const { text } = req.body;
+  try {
+    const updated = db.updateReply(req.params.id, text);
+    res.json({
+      success: true,
+      reply: updated,
+      replies: db.getReplies()
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete('/api/owner/replies/:id', (req, res) => {
+  const token = req.headers['x-owner-token'] || req.query.token;
+  const settings = db.getOwnerSettings();
+  if (token !== settings.password && token !== 'secretcrush2026') {
+    return res.status(401).json({ error: 'Unauthorized owner access' });
+  }
+
+  const success = db.deleteReply(req.params.id);
+  if (!success) {
+    return res.status(404).json({ error: 'Reply not found' });
+  }
+  res.json({
+    success: true,
+    replies: db.getReplies()
+  });
+});
+
 // Owner dashboard overview stats
 app.get('/api/owner/stats', (req, res) => {
   const token = req.headers['x-owner-token'] || req.query.token;

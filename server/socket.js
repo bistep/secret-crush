@@ -75,6 +75,10 @@ function getCasualReply(visitorText, personaName, customRules = []) {
   return "Hey! So good to connect. Enthokkeyund vishesham? 😊";
 }
 
+// Track duplicate incoming messages and active per-conversation auto-reply timers
+const processedAutoReplyMessages = new Set();
+const activeAutoReplyTimers = new Map();
+
 export function setupSocket(io) {
   // Track active visitor socket connections
   const activeVisitorSockets = new Map(); // visitorId -> Set of socketIds
@@ -199,82 +203,107 @@ export function setupSocket(io) {
         text: `Visitor (${visitorId}) just sent a message to ${persona ? persona.name : personaId}${!isAdminOnline ? ' (WHILE ADMIN WAS OFFLINE)' : ''}:\n\n"${content}"\n\nLogin to reply directly from your laptop:\nhttps://secret-crush.onrender.com/owner/inbox`
       });
 
-      // Smart auto-reply when admin is away or autoReply is enabled
-      const ownerSettings = db.getOwnerSettings();
-      const shouldAutoReply = (!isAdminOnline || ownerSettings.autoReplyEnabled);
-
-      if (shouldAutoReply) {
-        // Natural human typing delay from settings (default 5 to 8 seconds)
-        const baseDelay = (ownerSettings.autoReplyDelaySec && ownerSettings.autoReplyDelaySec >= 2)
-          ? ownerSettings.autoReplyDelaySec
-          : 6;
-        const typingDelay = Math.floor(baseDelay * 1000) + Math.floor(Math.random() * 2000);
-
-        // Show typing indicator after a short pause (1.2s)
-        setTimeout(() => {
-          io.to(`conv:${convId}`).emit('persona:typing_status', {
-            convId,
-            personaId,
-            isTyping: true
-          });
-        }, 1200);
-
-        // Send friendly reply after typing finishes
-        setTimeout(() => {
-          // Stop typing indicator
-          io.to(`conv:${convId}`).emit('persona:typing_status', {
-            convId,
-            personaId,
-            isTyping: false
-          });
-
-          // Check if owner already replied manually in the meantime
-          const currentMessages = db.getMessages(convId);
-          const lastMsg = currentMessages[currentMessages.length - 1];
-          if (lastMsg && lastMsg.sender === 'owner') {
-            return; // Owner replied manually
-          }
-
-          // Sequential Auto-Reply Engine:
-          // Match 1st reply to 1st visitor message, 2nd reply to 2nd visitor message, etc.
-          const visitorMessages = currentMessages.filter(m => m.sender === 'visitor');
-          const stepIndex = Math.max(0, visitorMessages.length - 1);
-
-          let replyText = '';
-          const seq = ownerSettings.autoReplySequence || [];
-          if (Array.isArray(seq) && seq.length > 0) {
-            if (stepIndex < seq.length) {
-              replyText = seq[stepIndex];
-            } else {
-              replyText = seq[seq.length - 1];
-            }
-          }
-
-          if (!replyText) {
-            replyText = getCasualReply(content, persona?.name, ownerSettings.customAutoReplies);
-          }
-          const autoMsg = db.addMessage({
-            conversationId: convId,
-            visitorId,
-            personaId,
-            sender: 'owner',
-            content: replyText,
-            type: 'text'
-          });
-
-          io.to(`conv:${convId}`).emit('message:new', autoMsg);
-          io.to(`room:visitor:${visitorId}`).emit('conversation:updated', {
-            conversationId: convId,
-            lastMessage: replyText,
-            lastSender: 'owner',
-            updatedAt: autoMsg.createdAt
-          });
-          io.to('room:owner').emit('owner:reply_sent', {
-            message: autoMsg,
-            isAutoReply: true
-          });
-        }, typingDelay);
+      // --- Sequential Auto-Reply Engine ---
+      // 1. Duplicate event prevention
+      if (processedAutoReplyMessages.has(message.id)) {
+        return;
       }
+      processedAutoReplyMessages.add(message.id);
+      if (processedAutoReplyMessages.size > 2000) {
+        const it = processedAutoReplyMessages.values();
+        for (let i = 0; i < 500; i++) processedAutoReplyMessages.delete(it.next().value);
+      }
+
+      // 2. Check if Auto-Reply is enabled
+      const ownerSettings = db.getOwnerSettings();
+      if (!ownerSettings.autoReplyEnabled) {
+        return; // Auto-Reply is disabled by owner
+      }
+
+      // 3. Load configured replies from database
+      const replies = db.getReplies().filter(r => r.enabled !== false && r.text && r.text.trim());
+      if (replies.length === 0) {
+        return; // No custom replies configured; do not send unexpected replies
+      }
+
+      // 4. Determine sequence step from visitor message count
+      const currentMessages = db.getMessages(convId);
+      const visitorMessages = currentMessages.filter(m => m.sender === 'visitor');
+      const stepIndex = Math.max(0, visitorMessages.length - 1);
+
+      // If all configured replies have already been delivered, stop
+      if (stepIndex >= replies.length) {
+        return;
+      }
+
+      const replyToSend = replies[stepIndex].text.trim();
+
+      // Clear any pending timer for this conversation
+      if (activeAutoReplyTimers.has(convId)) {
+        clearTimeout(activeAutoReplyTimers.get(convId));
+        activeAutoReplyTimers.delete(convId);
+      }
+
+      // 5. Realistic typing delay: random 5 to 10 seconds (5000ms - 10000ms)
+      const typingDelay = Math.floor(5000 + Math.random() * 5000);
+
+      // Show typing indicator after 1 second
+      setTimeout(() => {
+        io.to(`conv:${convId}`).emit('persona:typing_status', {
+          convId,
+          personaId,
+          isTyping: true
+        });
+      }, 1000);
+
+      const timer = setTimeout(() => {
+        activeAutoReplyTimers.delete(convId);
+
+        // Turn off typing indicator
+        io.to(`conv:${convId}`).emit('persona:typing_status', {
+          convId,
+          personaId,
+          isTyping: false
+        });
+
+        // Re-check conditions at execution time:
+        // A. Is auto-reply still enabled?
+        const currentSettings = db.getOwnerSettings();
+        if (!currentSettings.autoReplyEnabled) {
+          return;
+        }
+
+        // B. Did owner manually reply in the meantime?
+        const latestMessages = db.getMessages(convId);
+        const lastMsg = latestMessages[latestMessages.length - 1];
+        if (lastMsg && lastMsg.sender === 'owner') {
+          return; // Owner replied manually
+        }
+
+        // C. Send configured message
+        const autoMsg = db.addMessage({
+          conversationId: convId,
+          visitorId,
+          personaId,
+          sender: 'owner',
+          content: replyToSend,
+          type: 'text'
+        });
+
+        io.to(`conv:${convId}`).emit('message:new', autoMsg);
+        io.to(`room:visitor:${visitorId}`).emit('conversation:updated', {
+          conversationId: convId,
+          lastMessage: replyToSend,
+          lastSender: 'owner',
+          updatedAt: autoMsg.createdAt
+        });
+        io.to('room:owner').emit('owner:reply_sent', {
+          message: autoMsg,
+          isAutoReply: true
+        });
+      }, typingDelay);
+
+      activeAutoReplyTimers.set(convId, timer);
     });
 
     // --- Owner Sends Reply to Visitor ---
