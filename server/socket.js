@@ -38,6 +38,26 @@ function getRandomReply(personaId) {
   return replies[index];
 }
 
+function getCasualReply(visitorText, personaName) {
+  const lower = (visitorText || '').toLowerCase().trim();
+  if (lower === 'hi' || lower === 'hello' || lower === 'hey' || lower === 'hii' || lower === 'hlo') {
+    const greetings = [
+      "Hi! 😊 Enthokkeyund vishesham?",
+      "Hello! Sukhamano? ✨",
+      "Hi! Evidunnanu സ്ഥലം? 🌴",
+      "Hii! Glad you messaged 😊"
+    ];
+    return greetings[Math.floor(Math.random() * greetings.length)];
+  }
+  if (lower.includes('place') || lower.includes('evideya') || lower.includes('stalam') || lower.includes('evida') || lower.includes('where')) {
+    return "Njan Kerala thanneya 😊 Thaan evidunnanu?";
+  }
+  if (lower.includes('sukham') || lower.includes('fine') || lower.includes('good')) {
+    return "Sukham thanne! ✨ Work / study okke engane ponnu?";
+  }
+  return "Hey! So good to connect. Enthokkeyund vishesham? 😊";
+}
+
 export function setupSocket(io) {
   // Track active visitor socket connections
   const activeVisitorSockets = new Map(); // visitorId -> Set of socketIds
@@ -161,6 +181,63 @@ export function setupSocket(io) {
         subject: `${!isAdminOnline ? '[OFFLINE MISSED MESSAGE] ' : ''}New Message from Visitor to ${persona ? persona.name : personaId}`,
         text: `Visitor (${visitorId}) just sent a message to ${persona ? persona.name : personaId}${!isAdminOnline ? ' (WHILE ADMIN WAS OFFLINE)' : ''}:\n\n"${content}"\n\nLogin to reply directly from your laptop:\nhttps://secret-crush.onrender.com/owner/inbox`
       });
+
+      // Smart casual auto-reply when admin is away or autoReply is enabled
+      const ownerSettings = db.getOwnerSettings();
+      const shouldAutoReply = (!isAdminOnline || ownerSettings.autoReplyEnabled);
+
+      if (shouldAutoReply) {
+        // Natural human typing delay: 5 to 8 seconds (5000 - 8000 ms)
+        const typingDelay = Math.floor(Math.random() * 3000) + 5000;
+
+        // Show typing indicator after a short pause (1.5s)
+        setTimeout(() => {
+          io.to(`conv:${convId}`).emit('persona:typing_status', {
+            convId,
+            personaId,
+            isTyping: true
+          });
+        }, 1500);
+
+        // Send friendly reply after typing finishes
+        setTimeout(() => {
+          // Stop typing indicator
+          io.to(`conv:${convId}`).emit('persona:typing_status', {
+            convId,
+            personaId,
+            isTyping: false
+          });
+
+          // Check if owner already replied manually in the meantime
+          const currentMessages = db.getMessages(convId);
+          const lastMsg = currentMessages[currentMessages.length - 1];
+          if (lastMsg && lastMsg.sender === 'owner') {
+            return; // Owner replied manually
+          }
+
+          const replyText = getCasualReply(content, persona?.name);
+          const autoMsg = db.addMessage({
+            conversationId: convId,
+            visitorId,
+            personaId,
+            sender: 'owner',
+            content: replyText,
+            type: 'text'
+          });
+
+          io.to(`conv:${convId}`).emit('message:new', autoMsg);
+          io.to(`room:visitor:${visitorId}`).emit('conversation:updated', {
+            conversationId: convId,
+            lastMessage: replyText,
+            lastSender: 'owner',
+            updatedAt: autoMsg.createdAt
+          });
+          io.to('room:owner').emit('owner:reply_sent', {
+            message: autoMsg,
+            isAutoReply: true
+          });
+        }, typingDelay);
+      }
     });
 
     // --- Owner Sends Reply to Visitor ---
