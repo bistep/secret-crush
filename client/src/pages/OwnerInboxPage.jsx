@@ -3,7 +3,8 @@ import {
   Lock, MessageSquare, Send, Search, Users, CircleDot,
   Volume2, VolumeX, Shield, Sparkles, RefreshCw, LogOut,
   Clock, CheckCheck, Bot, ToggleLeft, ToggleRight, ArrowRight,
-  Image as ImageIcon, Download, Trash2, UserCheck, ChevronDown, Video, AlertCircle, X
+  Image as ImageIcon, Download, Trash2, UserCheck, ChevronDown, Video, AlertCircle, X,
+  Sliders, Plus, Check
 } from 'lucide-react';
 import { DEMO_PROFILES } from '../data/profiles';
 import { useAuth } from '../context/AuthContext';
@@ -30,6 +31,13 @@ export default function OwnerInboxPage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [loadingConv, setLoadingConv] = useState(false);
   const [visitorTyping, setVisitorTyping] = useState(false);
+
+  // Auto-Reply Settings & Custom Rules
+  const [showAutoReplyModal, setShowAutoReplyModal] = useState(false);
+  const [autoReplyDelaySec, setAutoReplyDelaySec] = useState(6);
+  const [customRules, setCustomRules] = useState([]);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Switch persona state ("Chat via somebody")
   const [customReplyAsId, setCustomReplyAsId] = useState('');
@@ -84,6 +92,17 @@ export default function OwnerInboxPage() {
   useEffect(() => {
     if (isOwnerLoggedIn && ownerToken) {
       fetchConversations();
+      // Fetch settings & custom auto-reply rules
+      fetch(`/api/owner/settings?token=${encodeURIComponent(ownerToken)}`, {
+        headers: { 'x-owner-token': ownerToken }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.autoReplyEnabled !== undefined) setAutoReplyEnabled(data.autoReplyEnabled);
+          if (data.autoReplyDelaySec !== undefined) setAutoReplyDelaySec(data.autoReplyDelaySec);
+          if (Array.isArray(data.customAutoReplies)) setCustomRules(data.customAutoReplies);
+        })
+        .catch(() => {});
     }
   }, [isOwnerLoggedIn, ownerToken]);
 
@@ -224,6 +243,49 @@ export default function OwnerInboxPage() {
         body: JSON.stringify({ autoReplyEnabled: updated })
       });
     } catch (e) {}
+  };
+
+  // Save full auto-reply settings & custom rules
+  const handleSaveAutoReplySettings = async () => {
+    setSavingSettings(true);
+    setSaveSuccess(false);
+    try {
+      await fetch('/api/owner/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-owner-token': ownerToken
+        },
+        body: JSON.stringify({
+          autoReplyEnabled,
+          autoReplyDelaySec: Number(autoReplyDelaySec) || 6,
+          customAutoReplies: customRules
+        })
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (e) {
+      alert('Failed to save settings');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleAddRule = () => {
+    setCustomRules(prev => [
+      ...prev,
+      { id: Date.now().toString(), trigger: '', response: '' }
+    ]);
+  };
+
+  const handleUpdateRule = (id, field, value) => {
+    setCustomRules(prev =>
+      prev.map(r => (r.id === id ? { ...r, [field]: value } : r))
+    );
+  };
+
+  const handleDeleteRule = (id) => {
+    setCustomRules(prev => prev.filter(r => r.id !== id));
   };
 
   // Download media file to laptop
@@ -504,6 +566,16 @@ export default function OwnerInboxPage() {
             <Bot className="w-4 h-4 text-emerald-400" />
             <span className="hidden sm:inline">Auto-Reply:</span>
             <strong>{autoReplyEnabled ? 'ON' : 'OFF'}</strong>
+          </button>
+
+          {/* Custom Auto-Replies Config Button */}
+          <button
+            onClick={() => setShowAutoReplyModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/35 text-purple-200 border border-purple-500/40 text-xs font-semibold transition-all shadow-sm"
+            title="Configure Auto-Reply Messages and Rules"
+          >
+            <Sliders className="w-3.5 h-3.5 text-purple-300" />
+            <span className="hidden sm:inline">Rules & Templates</span>
           </button>
 
           {/* Logout button */}
@@ -1006,6 +1078,164 @@ export default function OwnerInboxPage() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Custom Auto-Reply Rules Modal */}
+      {showAutoReplyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#130E22] border border-purple-500/40 rounded-3xl p-6 shadow-2xl flex flex-col text-white">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-purple-900/40 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-600/25 border border-purple-500/40 text-purple-300 flex items-center justify-center">
+                  <Sliders className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-white">Custom Auto-Reply Manager</h3>
+                  <p className="text-[11px] text-slate-400">Configure keyword triggers, typing speed, and customizable auto-replies</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAutoReplyModal(false)}
+                className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content Scroll */}
+            <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+              {/* Global Settings */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Auto-Reply Status
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setAutoReplyEnabled(!autoReplyEnabled)}
+                    className={`w-full py-2 px-3 rounded-xl border flex items-center justify-between font-bold text-xs transition-all ${
+                      autoReplyEnabled
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        : 'bg-white/5 text-slate-400 border-white/10'
+                    }`}
+                  >
+                    <span>{autoReplyEnabled ? '🟢 Enabled (Replies when away)' : '⚪ Disabled'}</span>
+                    <Bot className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Typing Delay (Seconds)
+                  </label>
+                  <input
+                    type="number"
+                    min="2"
+                    max="30"
+                    value={autoReplyDelaySec}
+                    onChange={(e) => setAutoReplyDelaySec(e.target.value)}
+                    className="w-full py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-purple-500"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">Realistic time to type before sending reply</span>
+                </div>
+              </div>
+
+              {/* Rules List */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Auto-Reply Rules ({customRules.length})</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleAddRule}
+                    className="px-2.5 py-1 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 text-xs font-bold flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Add Rule</span>
+                  </button>
+                </div>
+
+                {customRules.map((rule, idx) => (
+                  <div
+                    key={rule.id || idx}
+                    className="p-3.5 rounded-2xl bg-[#181329] border border-purple-900/50 space-y-2.5 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1">
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                          If Visitor Says (keyword or <code className="text-pink-300">*</code> for any message):
+                        </label>
+                        <input
+                          type="text"
+                          value={rule.trigger}
+                          onChange={(e) => handleUpdateRule(rule.id, 'trigger', e.target.value)}
+                          placeholder="e.g. hi, hello, or *"
+                          className="w-full py-1.5 px-3 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRule(rule.id)}
+                        className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 transition-colors self-end"
+                        title="Delete this rule"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                        Auto-Reply Response Message:
+                      </label>
+                      <textarea
+                        rows="2"
+                        value={rule.response}
+                        onChange={(e) => handleUpdateRule(rule.id, 'response', e.target.value)}
+                        placeholder="Type the message to send automatically..."
+                        className="w-full py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500 resize-none"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="pt-4 border-t border-purple-900/40 flex items-center justify-between shrink-0">
+              {saveSuccess ? (
+                <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span>Settings saved successfully!</span>
+                </span>
+              ) : (
+                <span className="text-[11px] text-slate-400">
+                  Settings are saved permanently to your server.
+                </span>
+              )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAutoReplyModal(false)}
+                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAutoReplySettings}
+                  disabled={savingSettings}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-95 text-white text-xs font-bold shadow-md shadow-purple-600/30 flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{savingSettings ? 'Saving...' : 'Save Settings'}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

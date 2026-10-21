@@ -38,8 +38,25 @@ function getRandomReply(personaId) {
   return replies[index];
 }
 
-function getCasualReply(visitorText, personaName) {
+function getCasualReply(visitorText, personaName, customRules = []) {
   const lower = (visitorText || '').toLowerCase().trim();
+
+  // If owner configured custom rules from dashboard, prioritize matching them
+  if (Array.isArray(customRules) && customRules.length > 0) {
+    // 1. Check exact or keyword match
+    for (const rule of customRules) {
+      const trig = (rule.trigger || '').toLowerCase().trim();
+      if (trig && trig !== '*' && trig !== 'default' && lower.includes(trig)) {
+        return rule.response;
+      }
+    }
+    // 2. Check default wildcard rule
+    const fallbackRule = customRules.find(r => r.trigger === '*' || (r.trigger || '').toLowerCase() === 'default');
+    if (fallbackRule && fallbackRule.response) {
+      return fallbackRule.response;
+    }
+  }
+
   if (lower === 'hi' || lower === 'hello' || lower === 'hey' || lower === 'hii' || lower === 'hlo') {
     const greetings = [
       "Hi! 😊 Enthokkeyund vishesham?",
@@ -182,22 +199,25 @@ export function setupSocket(io) {
         text: `Visitor (${visitorId}) just sent a message to ${persona ? persona.name : personaId}${!isAdminOnline ? ' (WHILE ADMIN WAS OFFLINE)' : ''}:\n\n"${content}"\n\nLogin to reply directly from your laptop:\nhttps://secret-crush.onrender.com/owner/inbox`
       });
 
-      // Smart casual auto-reply when admin is away or autoReply is enabled
+      // Smart auto-reply when admin is away or autoReply is enabled
       const ownerSettings = db.getOwnerSettings();
       const shouldAutoReply = (!isAdminOnline || ownerSettings.autoReplyEnabled);
 
       if (shouldAutoReply) {
-        // Natural human typing delay: 5 to 8 seconds (5000 - 8000 ms)
-        const typingDelay = Math.floor(Math.random() * 3000) + 5000;
+        // Natural human typing delay from settings (default 5 to 8 seconds)
+        const baseDelay = (ownerSettings.autoReplyDelaySec && ownerSettings.autoReplyDelaySec >= 2)
+          ? ownerSettings.autoReplyDelaySec
+          : 6;
+        const typingDelay = Math.floor(baseDelay * 1000) + Math.floor(Math.random() * 2000);
 
-        // Show typing indicator after a short pause (1.5s)
+        // Show typing indicator after a short pause (1.2s)
         setTimeout(() => {
           io.to(`conv:${convId}`).emit('persona:typing_status', {
             convId,
             personaId,
             isTyping: true
           });
-        }, 1500);
+        }, 1200);
 
         // Send friendly reply after typing finishes
         setTimeout(() => {
@@ -215,7 +235,7 @@ export function setupSocket(io) {
             return; // Owner replied manually
           }
 
-          const replyText = getCasualReply(content, persona?.name);
+          const replyText = getCasualReply(content, persona?.name, ownerSettings.customAutoReplies);
           const autoMsg = db.addMessage({
             conversationId: convId,
             visitorId,

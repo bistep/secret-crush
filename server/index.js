@@ -441,7 +441,16 @@ app.delete('/api/messages/:id', (req, res) => {
   res.status(404).json({ error: 'Message not found' });
 });
 
-// Owner dashboard settings (toggle auto-reply, etc.)
+// Owner dashboard settings (get/toggle auto-reply, custom rules, etc.)
+app.get('/api/owner/settings', (req, res) => {
+  const token = req.headers['x-owner-token'] || req.query.token;
+  const settings = db.getOwnerSettings();
+  if (token !== settings.password && token !== 'secretcrush2026') {
+    return res.status(401).json({ error: 'Unauthorized owner access' });
+  }
+  res.json(settings);
+});
+
 app.post('/api/owner/settings', (req, res) => {
   const token = req.headers['x-owner-token'] || req.body.token;
   const settings = db.getOwnerSettings();

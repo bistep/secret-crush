@@ -31,8 +31,13 @@ class Database {
         username: process.env.OWNER_USERNAME || 'owner',
         password: process.env.OWNER_PASSWORD || 'secretcrush2026',
         displayName: 'Secret Crush Operator & Concierge',
-        autoReplyEnabled: false,
-        autoReplyDelaySec: 3
+        autoReplyEnabled: true,
+        autoReplyDelaySec: 6,
+        customAutoReplies: [
+          { id: '1', trigger: 'hi', response: 'Hi! Enthokkeyund vishesham? 😊' },
+          { id: '2', trigger: 'evideya', response: 'Njan Kerala thanneya 😊 Thaan evidunnanu?' },
+          { id: '3', trigger: '*', response: 'Hey! So glad you messaged. Sukhamano? ✨' }
+        ]
       }
     };
     this.load();
