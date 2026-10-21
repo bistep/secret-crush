@@ -227,13 +227,30 @@ export default function OwnerInboxPage() {
   };
 
   // Download media file to laptop
-  const handleDownloadMedia = (mediaUrl, filename) => {
-    const a = document.createElement('a');
-    a.href = mediaUrl;
-    a.download = filename || `media_${Date.now()}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const handleDownloadMedia = async (mediaUrl, filename) => {
+    try {
+      if (mediaUrl.startsWith('data:')) {
+        const a = document.createElement('a');
+        a.href = mediaUrl;
+        a.download = filename || `media_${Date.now()}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        const res = await fetch(mediaUrl);
+        const blob = await res.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename || `media_${Date.now()}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+      }
+    } catch (e) {
+      window.open(mediaUrl, '_blank');
+    }
   };
 
   // Delete media or message

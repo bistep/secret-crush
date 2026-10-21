@@ -44,6 +44,48 @@ export default function ChatPage() {
   const [capturedImage, setCapturedImage] = useState(null);
   const [previewModalImage, setPreviewModalImage] = useState(null);
 
+  // Client View-Once Disappeared Media Tracking (persisted in localStorage)
+  const [disappearedMediaIds, setDisappearedMediaIds] = useState(() => {
+    try {
+      const stored = localStorage.getItem(`sc_disappeared_${personaId}`);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const [openedMediaIds, setOpenedMediaIds] = useState(new Set());
+
+  const markMediaDisappeared = (msgId) => {
+    if (!msgId) return;
+    setDisappearedMediaIds((prev) => {
+      const updated = new Set(prev);
+      updated.add(msgId);
+      try {
+        localStorage.setItem(`sc_disappeared_${personaId}`, JSON.stringify([...updated]));
+      } catch {}
+      return updated;
+    });
+  };
+
+  const handleImageClick = (msgId, imageSrc) => {
+    // If already marked as disappeared or already opened once: disappear immediately
+    if (disappearedMediaIds.has(msgId) || openedMediaIds.has(msgId)) {
+      markMediaDisappeared(msgId);
+      return;
+    }
+    // First time opening: record as opened and show modal
+    setOpenedMediaIds((prev) => new Set([...prev, msgId]));
+    setPreviewModalImage({ id: msgId, src: imageSrc });
+  };
+
+  const closePreviewModal = () => {
+    if (previewModalImage?.id) {
+      // Once opened and closed, photo automatically disappears from client chat
+      markMediaDisappeared(previewModalImage.id);
+    }
+    setPreviewModalImage(null);
+  };
+
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -163,25 +205,70 @@ export default function ChatPage() {
     const isVideo = file.type.startsWith('video/');
     const fileType = isVideo ? 'video' : 'image';
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64Data = event.target?.result;
-      if (typeof base64Data === 'string') {
-        const tempMsg = {
-          id: 'temp_' + Date.now(),
-          conversationId: `${visitorId}_${personaId}`,
-          visitorId,
-          personaId,
-          sender: 'visitor',
-          content: base64Data,
-          type: fileType,
-          createdAt: new Date().toISOString()
+    if (isVideo) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Data = event.target?.result;
+        if (typeof base64Data === 'string') {
+          const tempMsg = {
+            id: 'temp_' + Date.now(),
+            conversationId: `${visitorId}_${personaId}`,
+            visitorId,
+            personaId,
+            sender: 'visitor',
+            content: base64Data,
+            type: 'video',
+            createdAt: new Date().toISOString()
+          };
+          setMessages((prev) => [...prev, tempMsg]);
+          sendMessage(personaId, base64Data, 'video');
+          scrollToBottom();
+        }
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // Compress image for fast, reliable upload
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1400;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedData = canvas.toDataURL('image/jpeg', 0.82);
+
+          const tempMsg = {
+            id: 'temp_' + Date.now(),
+            conversationId: `${visitorId}_${personaId}`,
+            visitorId,
+            personaId,
+            sender: 'visitor',
+            content: compressedData,
+            type: 'image',
+            createdAt: new Date().toISOString()
+          };
+          setMessages((prev) => [...prev, tempMsg]);
+          sendMessage(personaId, compressedData, 'image');
+          scrollToBottom();
         };
-        setMessages((prev) => [...prev, tempMsg]);
-        sendMessage(personaId, base64Data, fileType);
-      }
-    };
-    reader.readAsDataURL(file);
+        img.src = event.target?.result;
+      };
+      reader.readAsDataURL(file);
+    }
     e.target.value = ''; // reset file input
   };
 
@@ -406,6 +493,7 @@ export default function ChatPage() {
           const isMe = msg.sender === 'visitor';
           const isVideo = msg.type === 'video' || (typeof msg.content === 'string' && msg.content.startsWith('data:video/'));
           const isImage = msg.type === 'image' || (typeof msg.content === 'string' && msg.content.startsWith('data:image/'));
+          const isDisappeared = disappearedMediaIds.has(msg.id);
           const time = msg.createdAt
             ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             : '';
@@ -431,28 +519,43 @@ export default function ChatPage() {
               >
                 {/* Render Video, Image or Text */}
                 {isVideo ? (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-[10px] text-purple-200 font-semibold bg-purple-500/25 px-2 py-0.5 rounded-md w-fit">
-                      <span>👁️ View Once Video</span>
+                  isDisappeared ? (
+                    <div className="flex items-center gap-2 py-2 px-3 rounded-xl bg-black/40 border border-white/10 text-slate-400 text-xs select-none">
+                      <span className="text-sm">💥</span>
+                      <span className="font-medium text-slate-300">Video disappeared</span>
+                      <span className="text-[10px] text-slate-500 ml-auto">(Viewed once)</span>
                     </div>
-                    <video
-                      src={msg.content}
-                      controls
-                      controlsList="nodownload"
-                      onContextMenu={(e) => e.preventDefault()}
-                      className="rounded-xl max-h-64 sm:max-h-72 w-full object-contain bg-black/40 border border-white/10"
-                    />
-                  </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <video
+                        src={msg.content}
+                        controls
+                        controlsList="nodownload"
+                        onEnded={() => markMediaDisappeared(msg.id)}
+                        onContextMenu={(e) => e.preventDefault()}
+                        className="rounded-xl max-h-64 sm:max-h-72 w-full object-contain bg-black/40 border border-white/10"
+                      />
+                    </div>
+                  )
                 ) : isImage ? (
-                  <div className="space-y-1.5">
-                    <img
-                      src={msg.content}
-                      alt="Shared photo"
-                      onClick={() => setPreviewModalImage(msg.content)}
-                      className="rounded-xl max-h-64 sm:max-h-72 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity border border-white/10"
-                      onContextMenu={(e) => e.preventDefault()}
-                    />
-                  </div>
+                  isDisappeared ? (
+                    <div className="flex items-center gap-2 py-2 px-3 rounded-xl bg-black/40 border border-white/10 text-slate-400 text-xs select-none">
+                      <span className="text-sm">💥</span>
+                      <span className="font-medium text-slate-300">Photo disappeared</span>
+                      <span className="text-[10px] text-slate-500 ml-auto">(Viewed once)</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <img
+                        src={msg.content}
+                        alt="Shared photo"
+                        onClick={() => handleImageClick(msg.id, msg.content)}
+                        className="rounded-xl max-h-64 sm:max-h-72 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity border border-white/10"
+                        onContextMenu={(e) => e.preventDefault()}
+                      />
+                      <p className="text-[9px] text-pink-200/70 italic text-center">Tap to view • Disappears once closed</p>
+                    </div>
+                  )
                 ) : (
                   <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                 )}
@@ -660,21 +763,25 @@ export default function ChatPage() {
       {/* Fullscreen Image Preview Modal */}
       {previewModalImage && (
         <div
-          onClick={() => setPreviewModalImage(null)}
+          onClick={closePreviewModal}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-lg cursor-pointer"
         >
-          <div className="relative max-w-2xl max-h-[85vh]">
+          <div className="relative max-w-2xl max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
             <img
-              src={previewModalImage}
+              src={previewModalImage.src || previewModalImage}
               alt="Full preview"
               className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
             />
             <button
-              onClick={() => setPreviewModalImage(null)}
+              type="button"
+              onClick={closePreviewModal}
               className="absolute top-3 right-3 p-2 rounded-full bg-black/70 text-white hover:bg-black"
             >
               <X className="w-5 h-5" />
             </button>
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-black/80 text-pink-300 text-xs font-semibold backdrop-blur-md border border-white/10">
+              👁️ View Once • Photo will disappear when closed
+            </div>
           </div>
         </div>
       )}
