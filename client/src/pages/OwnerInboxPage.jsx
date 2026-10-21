@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Lock, MessageSquare, Send, Search, Users, CircleDot,
   Volume2, VolumeX, Shield, Sparkles, RefreshCw, LogOut,
-  Clock, CheckCheck, Bot, ToggleLeft, ToggleRight, ArrowRight, Image as ImageIcon
+  Clock, CheckCheck, Bot, ToggleLeft, ToggleRight, ArrowRight,
+  Image as ImageIcon, Download, Trash2, UserCheck, ChevronDown, Video, AlertCircle, X
 } from 'lucide-react';
+import { DEMO_PROFILES } from '../data/profiles';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 
@@ -24,10 +26,16 @@ export default function OwnerInboxPage() {
   const [replyText, setReplyText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState('all'); // 'all', 'unread', 'online'
-  const [autoReplyEnabled, setAutoReplyEnabled] = useState(true);
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [loadingConv, setLoadingConv] = useState(false);
   const [visitorTyping, setVisitorTyping] = useState(false);
+
+  // Switch persona state ("Chat via somebody")
+  const [customReplyAsId, setCustomReplyAsId] = useState('');
+  const [showPersonaPicker, setShowPersonaPicker] = useState(false);
+  const [personaSearch, setPersonaSearch] = useState('');
+  const [unlockAlerts, setUnlockAlerts] = useState([]);
 
   const messagesEndRef = useRef(null);
   const replyInputRef = useRef(null);
@@ -150,11 +158,28 @@ export default function OwnerInboxPage() {
       }
     };
 
+    const handleUnlockClicked = (data) => {
+      if (soundEnabled) playSoundAlert();
+      setUnlockAlerts(prev => [data, ...prev.slice(0, 9)]);
+    };
+
+    const handleMessageDeleted = ({ messageId }) => {
+      setActiveConversationData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          messages: prev.messages.filter(m => m.id !== messageId)
+        };
+      });
+    };
+
     socket.on('owner:new_message', handleNewMessage);
     socket.on('owner:reply_sent', handleReplySent);
     socket.on('visitor:status', handleVisitorStatus);
     socket.on('visitor:typing_status', handleVisitorTyping);
     socket.on('visitor:phone_updated', handleVisitorPhone);
+    socket.on('visitor:unlock_clicked', handleUnlockClicked);
+    socket.on('message:deleted', handleMessageDeleted);
 
     return () => {
       socket.off('owner:new_message', handleNewMessage);
@@ -162,6 +187,8 @@ export default function OwnerInboxPage() {
       socket.off('visitor:status', handleVisitorStatus);
       socket.off('visitor:typing_status', handleVisitorTyping);
       socket.off('visitor:phone_updated', handleVisitorPhone);
+      socket.off('visitor:unlock_clicked', handleUnlockClicked);
+      socket.off('message:deleted', handleMessageDeleted);
     };
   }, [socket, isOwnerLoggedIn, selectedConvId, soundEnabled]);
 
@@ -199,32 +226,102 @@ export default function OwnerInboxPage() {
     } catch (e) {}
   };
 
-  // Send reply
-  const handleSendReply = (e) => {
+  // Download media file to laptop
+  const handleDownloadMedia = (mediaUrl, filename) => {
+    const a = document.createElement('a');
+    a.href = mediaUrl;
+    a.download = filename || `media_${Date.now()}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  // Delete media or message
+  const handleDeleteMessage = async (msgId) => {
+    if (!window.confirm('Delete this photo or message from the chat?')) return;
+    try {
+      await fetch(`/api/messages/${msgId}`, {
+        method: 'DELETE',
+        headers: { 'x-owner-token': ownerToken }
+      });
+      setActiveConversationData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          messages: prev.messages.filter(m => m.id !== msgId)
+        };
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Send reply (supports replying as chosen persona)
+  const handleSendReply = async (e) => {
     e?.preventDefault();
     if (!replyText.trim() || !activeConversationData) return;
 
-    const { visitorId, personaId } = activeConversationData.conversation;
+    const { visitorId, personaId, id: convId } = activeConversationData.conversation;
     const content = replyText.trim();
+    const personaToUse = customReplyAsId || personaId;
     setReplyText('');
 
-    sendOwnerReply(visitorId, personaId, content, 'text');
+    try {
+      await fetch('/api/owner/reply-as', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-owner-token': ownerToken
+        },
+        body: JSON.stringify({
+          conversationId: convId,
+          asPersonaId: personaToUse,
+          content,
+          type: 'text'
+        })
+      });
+      fetchActiveConversation(convId);
+    } catch (err) {
+      sendOwnerReply(visitorId, personaToUse, content, 'text');
+    }
 
     if (replyInputRef.current) {
       replyInputRef.current.focus();
     }
   };
 
+  // Handle Photo & Video Upload from Owner
   const handleOwnerImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file || !activeConversationData) return;
 
-    const { visitorId, personaId } = activeConversationData.conversation;
+    const { visitorId, personaId, id: convId } = activeConversationData.conversation;
+    const personaToUse = customReplyAsId || personaId;
+    const isVideo = file.type.startsWith('video/');
+    const fileType = isVideo ? 'video' : 'image';
+
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64Image = event.target?.result;
-      if (typeof base64Image === 'string') {
-        sendOwnerReply(visitorId, personaId, base64Image, 'image');
+    reader.onload = async (event) => {
+      const base64Data = event.target?.result;
+      if (typeof base64Data === 'string') {
+        try {
+          await fetch('/api/owner/reply-as', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-owner-token': ownerToken
+            },
+            body: JSON.stringify({
+              conversationId: convId,
+              asPersonaId: personaToUse,
+              content: base64Data,
+              type: fileType
+            })
+          });
+          fetchActiveConversation(convId);
+        } catch (err) {
+          sendOwnerReply(visitorId, personaToUse, base64Data, fileType);
+        }
       }
     };
     reader.readAsDataURL(file);
@@ -599,12 +696,58 @@ export default function OwnerInboxPage() {
                             : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-tr-none shadow-md shadow-purple-600/20'
                         }`}
                       >
-                        {msg.type === 'image' || (typeof msg.content === 'string' && msg.content.startsWith('data:image/')) ? (
-                          <img
-                            src={msg.content}
-                            alt="Shared"
-                            className="rounded-xl max-h-64 sm:max-h-72 w-full object-cover border border-white/10"
-                          />
+                        {msg.type === 'video' || (typeof msg.content === 'string' && msg.content.startsWith('data:video/')) ? (
+                          <div className="space-y-2">
+                            <video
+                              src={msg.content}
+                              controls
+                              className="rounded-xl max-h-64 sm:max-h-72 w-full object-contain bg-black/50 border border-white/10"
+                            />
+                            <div className="flex items-center gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadMedia(msg.content, `visitor_video_${Date.now()}.mp4`)}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 shadow"
+                              >
+                                <Download className="w-3 h-3" />
+                                <span>Save Video</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMessage(msg.id)}
+                                className="px-2.5 py-1 rounded-lg bg-rose-600/90 hover:bg-rose-500 text-white text-[11px] font-bold flex items-center gap-1 shadow"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Delete</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : msg.type === 'image' || (typeof msg.content === 'string' && msg.content.startsWith('data:image/')) ? (
+                          <div className="space-y-2">
+                            <img
+                              src={msg.content}
+                              alt="Shared"
+                              className="rounded-xl max-h-64 sm:max-h-72 w-full object-cover border border-white/10"
+                            />
+                            <div className="flex items-center gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadMedia(msg.content, `visitor_photo_${Date.now()}.jpg`)}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 shadow"
+                              >
+                                <Download className="w-3 h-3" />
+                                <span>Save Photo</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMessage(msg.id)}
+                                className="px-2.5 py-1 rounded-lg bg-rose-600/90 hover:bg-rose-500 text-white text-[11px] font-bold flex items-center gap-1 shadow"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Delete</span>
+                              </button>
+                            </div>
+                          </div>
                         ) : (
                           <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                         )}
@@ -647,13 +790,44 @@ export default function OwnerInboxPage() {
                 </div>
               </div>
 
+              {/* Persona Selector Bar (Chat via Somebody) */}
+              <div className="px-4 py-2 bg-[#100C1E] border-t border-purple-900/30 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400">Replying as:</span>
+                  <div className="flex items-center gap-1.5 font-bold text-pink-300 bg-pink-500/10 px-2 py-0.5 rounded-lg border border-pink-500/20">
+                    <UserCheck className="w-3.5 h-3.5 text-pink-400" />
+                    <span>
+                      {customReplyAsId ? (DEMO_PROFILES.find(p => p.id === customReplyAsId)?.name || customReplyAsId) : activeConversationData.persona?.name}
+                    </span>
+                  </div>
+                  {customReplyAsId && (
+                    <button
+                      type="button"
+                      onClick={() => setCustomReplyAsId('')}
+                      className="text-[10px] text-slate-400 hover:text-white underline"
+                    >
+                      (Reset)
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowPersonaPicker(true)}
+                  className="px-2.5 py-1 rounded-xl bg-purple-600/20 hover:bg-purple-600/40 text-purple-200 border border-purple-500/30 font-semibold flex items-center gap-1 transition-all text-[11px]"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                  <span>Chat via somebody ▾</span>
+                </button>
+              </div>
+
               {/* Owner Reply Box */}
               <div className="p-3 sm:p-4 bg-[#120E22] border-t border-purple-900/40">
                 <input
                   type="file"
                   ref={ownerFileInputRef}
                   onChange={handleOwnerImageUpload}
-                  accept="image/*"
+                  accept="image/*,video/*"
                   className="hidden"
                 />
                 <form onSubmit={handleSendReply} className="flex items-center gap-2">
@@ -661,7 +835,7 @@ export default function OwnerInboxPage() {
                     type="button"
                     onClick={() => ownerFileInputRef.current?.click()}
                     className="p-3 rounded-2xl bg-white/5 hover:bg-pink-500/20 border border-purple-900/40 text-slate-400 hover:text-pink-400 transition-colors"
-                    title="Send image"
+                    title="Send photo or video"
                   >
                     <ImageIcon className="w-5 h-5" />
                   </button>
@@ -670,7 +844,7 @@ export default function OwnerInboxPage() {
                     type="text"
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
-                    placeholder={`Reply as ${activeConversationData.persona?.name || 'Owner'} to visitor...`}
+                    placeholder={`Reply as ${customReplyAsId ? (DEMO_PROFILES.find(p => p.id === customReplyAsId)?.name || customReplyAsId) : (activeConversationData.persona?.name || 'Owner')} to visitor...`}
                     className="flex-1 px-4 py-3 rounded-2xl bg-white/5 border border-purple-900/40 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500"
                   />
                   <button
@@ -699,6 +873,90 @@ export default function OwnerInboxPage() {
           )}
         </div>
       </div>
+
+      {/* Switch Persona Modal ("Chat via somebody") */}
+      {showPersonaPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-lg bg-[#140F24] border border-purple-600/40 rounded-3xl p-6 shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between pb-3 border-b border-purple-900/40">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-pink-400" />
+                <h3 className="text-base font-bold text-white">
+                  Chat via Somebody (Switch Persona)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPersonaPicker(false)}
+                className="p-1 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400 mt-2 mb-3">
+              Select any profile from the 100+ personas to send your next reply as that person:
+            </p>
+
+            {/* Persona Search Input */}
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+              <input
+                type="text"
+                value={personaSearch}
+                onChange={(e) => setPersonaSearch(e.target.value)}
+                placeholder="Search persona by name or place (e.g. Arjun, Meera, Palakkad)..."
+                className="w-full pl-9 pr-4 py-2 bg-black/40 border border-purple-900/50 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
+              />
+            </div>
+
+            {/* Persona Grid / List */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {DEMO_PROFILES.filter(p => {
+                if (!personaSearch.trim()) return true;
+                const q = personaSearch.toLowerCase();
+                return p.name.toLowerCase().includes(q) || (p.place || '').toLowerCase().includes(q) || p.handle.toLowerCase().includes(q);
+              }).map((p) => {
+                const isSelected = customReplyAsId === p.id;
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => {
+                      setCustomReplyAsId(p.id);
+                      setShowPersonaPicker(false);
+                    }}
+                    className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                      isSelected
+                        ? 'bg-pink-600/25 border-pink-500'
+                        : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden bg-purple-950/40 p-1 shrink-0 border border-white/10">
+                        <img src={p.avatar_url} alt={p.name} className="w-full h-full object-contain" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-xs text-white">{p.name}, {p.age}</span>
+                          <span className="text-[10px] text-pink-300 font-mono">{p.handle}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400">📍 {p.place} • {p.gender}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="px-3 py-1 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-[10px] font-bold"
+                    >
+                      Select
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

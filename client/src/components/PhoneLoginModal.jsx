@@ -103,9 +103,14 @@ export default function PhoneLoginModal({ isOpen, onClose, personaName = 'your c
             </div>
           )}
 
-          <div className="p-2.5 rounded-xl bg-white/5 text-[10px] text-slate-400 flex items-center gap-2">
-            <Lock className="w-3.5 h-3.5 text-pink-400 shrink-0" />
-            <span>Strict validation: exactly 10 digits required.</span>
+          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-amber-300">
+              <Lock className="w-3.5 h-3.5 shrink-0" />
+              <span>Privacy & Identity Protection</span>
+            </div>
+            <p className="leading-snug">
+              We do not use or share your phone number by any chance — this is strictly for temporary login verification. Never share your phone number with anyone in chat as it may reveal your private identity.
+            </p>
           </div>
 
           <button

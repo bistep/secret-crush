@@ -42,11 +42,25 @@ export const AVATAR_OPTIONS = [
   }
 ];
 
+export const KERALA_DISTRICTS_LIST = [
+  'Palakkad', 'Ernakulam', 'Kozhikode', 'Thrissur', 'Trivandrum', 'Kannur',
+  'Kollam', 'Kottayam', 'Malappuram', 'Alappuzha', 'Wayanad', 'Idukki',
+  'Kasaragod', 'Pathanamthitta'
+];
+
 export default function VisitorOnboardingModal({ isOpen }) {
-  const { saveVisitorProfile, visitorName: currentName, gender: currentGender, preference: currentPref, visitorAvatar: currentAvatar } = useAuth();
+  const {
+    saveVisitorProfile,
+    visitorName: currentName,
+    gender: currentGender,
+    preference: currentPref,
+    visitorAvatar: currentAvatar,
+    visitorPlace: currentPlace
+  } = useAuth();
 
   const [step, setStep] = useState(1);
   const [name, setName] = useState(currentName || '');
+  const [place, setPlace] = useState(currentPlace || 'Palakkad');
   const [gender, setGender] = useState(currentGender || 'Male');
   const [preference, setPreference] = useState(currentPref || 'Women');
   const [selectedAvatar, setSelectedAvatar] = useState(currentAvatar || AVATAR_OPTIONS[0].url);
@@ -59,6 +73,10 @@ export default function VisitorOnboardingModal({ isOpen }) {
     e.preventDefault();
     if (!name.trim() || name.trim().length < 2) {
       setErrorMsg('Please enter a name or nickname (at least 2 letters)');
+      return;
+    }
+    if (!place) {
+      setErrorMsg('Please select your location / district');
       return;
     }
     setErrorMsg('');
@@ -84,6 +102,7 @@ export default function VisitorOnboardingModal({ isOpen }) {
     try {
       await saveVisitorProfile({
         name: name.trim(),
+        place,
         gender,
         preference,
         avatar: selectedAvatar
@@ -155,10 +174,31 @@ export default function VisitorOnboardingModal({ isOpen }) {
                     setErrorMsg('');
                   }}
                   placeholder="e.g. Rahul, Sandra, Jithin, Meera..."
-                  className="w-full px-4 py-3.5 bg-black/40 border border-white/15 focus:border-pink-500 rounded-2xl text-white placeholder-slate-500 outline-none text-sm transition-all focus:ring-2 focus:ring-pink-500/20"
+                  className="w-full px-4 py-3 bg-black/40 border border-white/15 focus:border-pink-500 rounded-2xl text-white placeholder-slate-500 outline-none text-sm transition-all focus:ring-2 focus:ring-pink-500/20"
                 />
-                <User className="absolute right-4 top-3.5 w-5 h-5 text-slate-500" />
+                <User className="absolute right-4 top-3 w-5 h-5 text-slate-500" />
               </div>
+            </div>
+
+            {/* Place / District Selector */}
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-2">
+                Your District / Location in Kerala:
+              </label>
+              <select
+                value={place}
+                onChange={(e) => setPlace(e.target.value)}
+                className="w-full px-4 py-3 bg-[#0d0918] border border-white/15 focus:border-pink-500 rounded-2xl text-white outline-none text-sm transition-all"
+              >
+                {KERALA_DISTRICTS_LIST.map((dist) => (
+                  <option key={dist} value={dist} className="bg-[#120D22] text-white">
+                    📍 {dist}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-pink-300/80 mt-1">
+                We'll prioritize showing active chats from {place}!
+              </p>
             </div>
 
             <button

@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { db } from './db.js';
 import { setupSocket } from './socket.js';
+import { sendOwnerAlert } from './mailer.js';
 
 dotenv.config();
 
@@ -134,20 +135,45 @@ app.post('/api/visitors/preferences', (req, res) => {
   res.json(updated);
 });
 
-// 5b. Update Visitor Profile (Name, Gender, Preference, Avatar)
+// 5b. Update Visitor Profile (Name, Gender, Preference, Avatar, Place)
 app.post('/api/visitors/profile', (req, res) => {
-  const { visitorId, name, gender, preference, avatar } = req.body;
+  const { visitorId, name, gender, preference, avatar, place } = req.body;
   if (!visitorId) return res.status(400).json({ error: 'visitorId required' });
-  const updated = db.updateVisitor(visitorId, { name, gender, preference, avatar });
+  const updated = db.updateVisitor(visitorId, { name, gender, preference, avatar, place });
   io.to('room:owner').emit('visitor:profile_updated', {
     visitorId,
     name,
     gender,
     preference,
     avatar,
+    place,
     updatedAt: new Date().toISOString()
   });
+
+  // Alert owner of new visitor
+  sendOwnerAlert({
+    subject: `New Visitor Joined: ${name || 'Anonymous'} (${place || 'Kerala'}, ${gender || 'Adult'})`,
+    text: `A new visitor joined Secret Crush!\nName: ${name}\nPlace: ${place || 'Kerala'}\nGender: ${gender}\nInterested in: ${preference}\nVisitor ID: ${visitorId}\nTime: ${new Date().toLocaleString()}`
+  });
+
   res.json({ success: true, visitor: updated });
+});
+
+// 5c. Locked Region Click Request
+app.post('/api/visitors/unlock-request', (req, res) => {
+  const { visitorId, profileId, place } = req.body;
+  const item = db.addUnlockRequest({ visitorId, profileId, place });
+  io.to('room:owner').emit('visitor:unlock_clicked', {
+    visitorId,
+    profileId,
+    place,
+    createdAt: item.createdAt
+  });
+  sendOwnerAlert({
+    subject: `Unlock Clicked for: ${place}`,
+    text: `Visitor (${visitorId}) tapped to unlock regional contacts from ${place}.\nTime: ${new Date().toLocaleString()}`
+  });
+  res.json({ success: true, item });
 });
 
 // 6. Favorites
@@ -347,6 +373,60 @@ app.post('/api/owner/reply', (req, res) => {
   io.to('room:owner').emit('owner:reply_sent', { message, isAutoReply: false });
 
   res.json({ success: true, message });
+});
+
+// Owner sends reply as ANY specified persona ("Chat via somebody")
+app.post('/api/owner/reply-as', (req, res) => {
+  const token = req.headers['x-owner-token'] || req.body.token;
+  const settings = db.getOwnerSettings();
+  if (token !== settings.password && token !== 'secretcrush2026') {
+    return res.status(401).json({ error: 'Unauthorized owner access' });
+  }
+
+  const { conversationId, content, type = 'text', asPersonaId } = req.body;
+  if (!conversationId || !content?.trim()) {
+    return res.status(400).json({ error: 'Missing reply parameters' });
+  }
+
+  const conv = db.getConversationById(conversationId);
+  if (!conv) return res.status(404).json({ error: 'Conversation not found' });
+
+  const activePersonaId = asPersonaId || conv.personaId;
+  const message = db.addMessage({
+    conversationId: conv.id,
+    visitorId: conv.visitorId,
+    personaId: activePersonaId,
+    sender: 'owner',
+    content,
+    type
+  });
+
+  io.to(`conv:${conv.id}`).emit('message:new', message);
+  io.to(`room:visitor:${conv.visitorId}`).emit('conversation:updated', {
+    conversationId: conv.id,
+    lastMessage: content,
+    lastSender: 'owner',
+    updatedAt: message.createdAt
+  });
+  io.to('room:owner').emit('owner:reply_sent', { message, isAutoReply: false });
+
+  res.json({ success: true, message });
+});
+
+// Admin deletes a photo or message from chat
+app.delete('/api/messages/:id', (req, res) => {
+  const token = req.headers['x-owner-token'] || req.query.token;
+  const settings = db.getOwnerSettings();
+  if (token !== settings.password && token !== 'secretcrush2026') {
+    return res.status(401).json({ error: 'Unauthorized owner access' });
+  }
+
+  const removed = db.deleteMessage(req.params.id);
+  if (removed) {
+    io.to(`conv:${removed.conversationId}`).emit('message:deleted', { messageId: removed.id });
+    return res.json({ success: true, messageId: removed.id });
+  }
+  res.status(404).json({ error: 'Message not found' });
 });
 
 // Owner dashboard settings (toggle auto-reply, etc.)

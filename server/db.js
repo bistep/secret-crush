@@ -27,7 +27,7 @@ class Database {
         username: process.env.OWNER_USERNAME || 'owner',
         password: process.env.OWNER_PASSWORD || 'secretcrush2026',
         displayName: 'Secret Crush Operator & Concierge',
-        autoReplyEnabled: true,
+        autoReplyEnabled: false,
         autoReplyDelaySec: 3
       }
     };
@@ -194,6 +194,11 @@ class Database {
 
   addMessage({ conversationId, visitorId, personaId, sender, content, type = 'text' }) {
     const isImage = type === 'image' || (typeof content === 'string' && content.startsWith('data:image/'));
+    const isVideo = type === 'video' || (typeof content === 'string' && content.startsWith('data:video/'));
+    let msgType = 'text';
+    if (isImage) msgType = 'image';
+    if (isVideo) msgType = 'video';
+
     const message = {
       id: uuidv4(),
       conversationId,
@@ -201,7 +206,7 @@ class Database {
       personaId,
       sender,
       content: content.trim(),
-      type: isImage ? 'image' : 'text',
+      type: msgType,
       createdAt: new Date().toISOString(),
       isRead: false
     };
@@ -211,7 +216,7 @@ class Database {
     const conv = this.data.conversations[conversationId];
     if (conv) {
       conv.updatedAt = message.createdAt;
-      conv.lastMessage = isImage ? '📷 Photo' : message.content;
+      conv.lastMessage = isVideo ? '🎥 Video (View Once)' : isImage ? '📷 Photo' : message.content;
       conv.lastMessageAt = message.createdAt;
       conv.lastSender = sender;
       if (sender === 'visitor') {
@@ -223,6 +228,32 @@ class Database {
 
     this.save();
     return message;
+  }
+
+  deleteMessage(messageId) {
+    const idx = this.data.messages.findIndex(m => m.id === messageId);
+    if (idx !== -1) {
+      const removed = this.data.messages.splice(idx, 1)[0];
+      this.save();
+      return removed;
+    }
+    return null;
+  }
+
+  addUnlockRequest({ visitorId, profileId, place }) {
+    if (!this.data.unlockRequests) {
+      this.data.unlockRequests = [];
+    }
+    const item = {
+      id: uuidv4(),
+      visitorId,
+      profileId,
+      place,
+      createdAt: new Date().toISOString()
+    };
+    this.data.unlockRequests.push(item);
+    this.save();
+    return item;
   }
 
   markMessagesAsRead(conversationId, readerType) {

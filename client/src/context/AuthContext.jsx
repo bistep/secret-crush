@@ -15,6 +15,8 @@ export function AuthProvider({ children }) {
   const [visitorId] = useState(getOrCreateVisitorId);
   const [visitorName, setVisitorName] = useState(() => localStorage.getItem('sc_visitor_name') || '');
   const [visitorAvatar, setVisitorAvatar] = useState(() => localStorage.getItem('sc_visitor_avatar') || '');
+  const [visitorPlace, setVisitorPlace] = useState(() => localStorage.getItem('sc_visitor_place') || '');
+  const [cookieConsent, setCookieConsentState] = useState(() => localStorage.getItem('sc_cookie_consent') || '');
   const [gender, setGender] = useState(() => localStorage.getItem('sc_gender') || '');
   const [preference, setPreference] = useState(() => localStorage.getItem('sc_preference') || 'Everyone');
   const [isAgeVerified, setIsAgeVerified] = useState(() => localStorage.getItem('sc_age_verified') === 'true');
@@ -154,10 +156,19 @@ export function AuthProvider({ children }) {
     return { success: true, phone: clean };
   };
 
-  const saveVisitorProfile = async ({ name, gender: newGender, preference: newPref, avatar }) => {
+  const setCookieConsent = (consent) => {
+    setCookieConsentState(consent);
+    localStorage.setItem('sc_cookie_consent', consent);
+  };
+
+  const saveVisitorProfile = async ({ name, gender: newGender, preference: newPref, avatar, place }) => {
     if (name) {
       setVisitorName(name);
       localStorage.setItem('sc_visitor_name', name);
+    }
+    if (place) {
+      setVisitorPlace(place);
+      localStorage.setItem('sc_visitor_place', place);
     }
     if (newGender) {
       setGender(newGender);
@@ -185,7 +196,8 @@ export function AuthProvider({ children }) {
           name: name || visitorName,
           gender: newGender || gender,
           preference: newPref || preference,
-          avatar: avatar || visitorAvatar
+          avatar: avatar || visitorAvatar,
+          place: place || visitorPlace
         })
       });
     } catch (e) {
@@ -205,6 +217,9 @@ export function AuthProvider({ children }) {
         visitorId,
         visitorName,
         visitorAvatar,
+        visitorPlace,
+        cookieConsent,
+        setCookieConsent,
         isProfileComplete,
         saveVisitorProfile,
         gender,

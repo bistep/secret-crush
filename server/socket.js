@@ -1,4 +1,5 @@
 import { db } from './db.js';
+import { sendOwnerAlert } from './mailer.js';
 
 // Contextual intelligent demonstration replies for personas when owner is offline or auto-reply is active
 const PERSONA_REPLIES = {
@@ -153,41 +154,11 @@ export function setupSocket(io) {
         }
       });
 
-      // Auto-reply simulation if owner is not actively in chat or auto-reply is turned on
-      const ownerSettings = db.getOwnerSettings();
-      const hasActiveOwnerInRoom = io.sockets.adapter.rooms.get(`conv:${convId}`)?.size > 1;
-
-      if (ownerSettings.autoReplyEnabled && !hasActiveOwnerInRoom) {
-        const delay = (ownerSettings.autoReplyDelaySec || 3) * 1000;
-        setTimeout(() => {
-          // Double check if conversation was blocked in the interim
-          if (db.isBlocked(visitorId, personaId)) return;
-
-          const replyText = getRandomReply(personaId);
-          const replyMsg = db.addMessage({
-            conversationId: convId,
-            visitorId,
-            personaId,
-            sender: 'owner',
-            content: replyText
-          });
-
-          // Deliver reply to visitor
-          io.to(`conv:${convId}`).emit('message:new', replyMsg);
-          io.to(`room:visitor:${visitorId}`).emit('conversation:updated', {
-            conversationId: convId,
-            lastMessage: replyText,
-            lastSender: 'owner',
-            updatedAt: replyMsg.createdAt
-          });
-
-          // Update owner inbox in real time
-          io.to('room:owner').emit('owner:reply_sent', {
-            message: replyMsg,
-            isAutoReply: true
-          });
-        }, delay);
-      }
+      // Send instant owner email notification for new visitor message
+      sendOwnerAlert({
+        subject: `New Message from Visitor to ${persona ? persona.name : personaId}`,
+        text: `Visitor (${visitorId}) just sent a message to ${persona ? persona.name : personaId}:\n\n"${content}"\n\nLogin to reply directly from your laptop:\nhttps://secret-crush.onrender.com/owner/inbox`
+      });
     });
 
     // --- Owner Sends Reply to Visitor ---

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Send, Smile, Camera, Image as ImageIcon, ShieldAlert, CheckCheck, X, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Send, Smile, Camera, Image as ImageIcon, ShieldAlert, CheckCheck, X, RefreshCw, Lock, Video } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { DEMO_PROFILES } from '../data/profiles';
@@ -8,12 +8,13 @@ import ReportModal from '../components/ReportModal';
 import PhoneLoginModal from '../components/PhoneLoginModal';
 
 const QUICK_FLIRTS = [
-  "Hey, how's your evening going? 😊",
-  "Pretty good! What about you?",
-  "You seem really interesting! ✨",
-  "What are you up to tonight? ❤️",
-  "Your smile caught my eye immediately 😍",
-  "Tell me your idea of a perfect weekend getaway 🌊"
+  'Say Hello 👋',
+  'Say Hey 😊',
+  'Hii ✨',
+  'Evideya? 🌴',
+  'Chai kudio? ☕',
+  'Good morning ☀️',
+  'Good evening 🌙'
 ];
 
 const EMOJI_LIST = ['😊', '❤️', '✨', '😍', '🔥', '😘', '😉', '🥰', '🥂', '🌹', '💬', '☕'];
@@ -154,27 +155,30 @@ export default function ChatPage() {
     }
   };
 
-  // Handle Image File Upload (Gallery)
+  // Handle Photo & Video File Upload (Gallery)
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const isVideo = file.type.startsWith('video/');
+    const fileType = isVideo ? 'video' : 'image';
+
     const reader = new FileReader();
     reader.onload = (event) => {
-      const base64Image = event.target?.result;
-      if (typeof base64Image === 'string') {
+      const base64Data = event.target?.result;
+      if (typeof base64Data === 'string') {
         const tempMsg = {
           id: 'temp_' + Date.now(),
           conversationId: `${visitorId}_${personaId}`,
           visitorId,
           personaId,
           sender: 'visitor',
-          content: base64Image,
-          type: 'image',
+          content: base64Data,
+          type: fileType,
           createdAt: new Date().toISOString()
         };
         setMessages((prev) => [...prev, tempMsg]);
-        sendMessage(personaId, base64Image, 'image');
+        sendMessage(personaId, base64Data, fileType);
       }
     };
     reader.readAsDataURL(file);
@@ -386,9 +390,21 @@ export default function ChatPage() {
           </div>
         )}
 
+        {/* Pinned End-to-End Encrypted Notice */}
+        <div className="sticky top-0 z-20 mx-auto mb-4 px-3.5 py-2 rounded-2xl bg-[#140F24]/90 border border-purple-500/30 text-center backdrop-blur-md shadow-md max-w-md">
+          <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-pink-300">
+            <Lock className="w-3.5 h-3.5 text-pink-400" />
+            <span>End-to-End Encrypted & Ephemeral Chat</span>
+          </div>
+          <p className="text-[10px] text-slate-300/85 mt-0.5 leading-snug">
+            Screenshots and media saving are restricted on this viewer. When you close this chat, temporary media and shared details will be cleared.
+          </p>
+        </div>
+
         {/* Message history */}
         {messages.map((msg, idx) => {
           const isMe = msg.sender === 'visitor';
+          const isVideo = msg.type === 'video' || (typeof msg.content === 'string' && msg.content.startsWith('data:video/'));
           const isImage = msg.type === 'image' || (typeof msg.content === 'string' && msg.content.startsWith('data:image/'));
           const time = msg.createdAt
             ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -413,14 +429,28 @@ export default function ChatPage() {
                     : 'bg-[#181428] text-slate-100 border border-purple-900/40 rounded-bl-none'
                 }`}
               >
-                {/* Render Image or Text */}
-                {isImage ? (
+                {/* Render Video, Image or Text */}
+                {isVideo ? (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-[10px] text-purple-200 font-semibold bg-purple-500/25 px-2 py-0.5 rounded-md w-fit">
+                      <span>👁️ View Once Video</span>
+                    </div>
+                    <video
+                      src={msg.content}
+                      controls
+                      controlsList="nodownload"
+                      onContextMenu={(e) => e.preventDefault()}
+                      className="rounded-xl max-h-64 sm:max-h-72 w-full object-contain bg-black/40 border border-white/10"
+                    />
+                  </div>
+                ) : isImage ? (
                   <div className="space-y-1.5">
                     <img
                       src={msg.content}
                       alt="Shared photo"
                       onClick={() => setPreviewModalImage(msg.content)}
                       className="rounded-xl max-h-64 sm:max-h-72 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity border border-white/10"
+                      onContextMenu={(e) => e.preventDefault()}
                     />
                   </div>
                 ) : (
@@ -491,22 +521,22 @@ export default function ChatPage() {
             </div>
           )}
 
-          {/* Hidden File Input for Image Upload */}
+          {/* Hidden File Input for Photo & Video Upload */}
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileUpload}
-            accept="image/*"
+            accept="image/*,video/*"
             className="hidden"
           />
 
           <form onSubmit={handleSend} className="flex items-center gap-2">
-            {/* Gallery Image Upload Button */}
+            {/* Gallery Photo / Video Upload Button */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="p-2.5 rounded-xl bg-white/5 hover:bg-pink-500/20 border border-purple-900/40 text-slate-400 hover:text-pink-400 transition-colors"
-              title="Send image from gallery"
+              title="Send photo or video from gallery"
             >
               <ImageIcon className="w-5 h-5" />
             </button>

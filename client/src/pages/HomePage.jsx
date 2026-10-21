@@ -1,16 +1,26 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Heart, Sparkles, Users, Flame, RefreshCw, MapPin } from 'lucide-react';
+import { Heart, Sparkles, Users, Flame, RefreshCw, MapPin, Lock, ShieldAlert, CheckCircle2, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { DEMO_PROFILES } from '../data/profiles';
+import { DEMO_PROFILES, LOCKED_REGIONAL_PROFILES } from '../data/profiles';
 import ProfileCard from '../components/ProfileCard';
 import FilterBar from '../components/FilterBar';
 import AgeFilter, { AGE_RANGES } from '../components/AgeFilter';
 import VisitorOnboardingModal from '../components/VisitorOnboardingModal';
+import CookieConsentBanner from '../components/CookieConsentBanner';
 
 export default function HomePage() {
-  const { isProfileComplete, preference: userPreference, favorites, visitorName, visitorAvatar } = useAuth();
+  const {
+    isProfileComplete,
+    preference: userPreference,
+    favorites,
+    visitorName,
+    visitorAvatar,
+    visitorPlace,
+    visitorId
+  } = useAuth();
+
   const [profiles, setProfiles] = useState(DEMO_PROFILES);
-  const [loading, setLoading] = useState(false);
+  const [lockedProfiles] = useState(LOCKED_REGIONAL_PROFILES);
 
   // Filters state
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,6 +34,9 @@ export default function HomePage() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [selectedAgeRanges, setSelectedAgeRanges] = useState([]);
 
+  // Modal for locked contact click
+  const [selectedLocked, setSelectedLocked] = useState(null);
+
   // Fetch updated profiles from backend if available
   useEffect(() => {
     fetch('/api/profiles')
@@ -33,16 +46,32 @@ export default function HomePage() {
           setProfiles(data);
         }
       })
-      .catch(() => {
-        // Fallback to local DEMO_PROFILES
-      });
+      .catch(() => {});
   }, []);
 
-  // Update gender filter if user preference changes
+  // Sync gender filter when user preference changes
   useEffect(() => {
-    if (userPreference === 'Women') setGenderFilter('Women');
-    else if (userPreference === 'Men') setGenderFilter('Men');
+    if (userPreference === 'Women') {
+      setGenderFilter('Women');
+    } else if (userPreference === 'Men') {
+      setGenderFilter('Men');
+    }
   }, [userPreference]);
+
+  // Handle clicking on a locked regional contact
+  const handleLockedClick = (lockedItem) => {
+    setSelectedLocked(lockedItem);
+    // Send alert to admin backend
+    fetch('/api/visitors/unlock-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        visitorId,
+        profileId: lockedItem.id,
+        place: lockedItem.place
+      })
+    }).catch(err => console.log('Unlock alert sent offline'));
+  };
 
   // Filter profiles based on all criteria
   const filteredProfiles = useMemo(() => {
@@ -87,9 +116,22 @@ export default function HomePage() {
     });
   }, [profiles, searchQuery, genderFilter, districtFilter, onlineOnly, favoritesOnly, selectedAgeRanges, favorites]);
 
+  // Profiles from user's hometown/district
+  const hometownMatches = useMemo(() => {
+    if (!visitorPlace) return [];
+    const target = visitorPlace.toLowerCase();
+    return profiles.filter(p => {
+      const pPlace = (p.place || p.location || '').toLowerCase();
+      const matchesPlace = pPlace.includes(target);
+      if (genderFilter === 'Women' && p.gender !== 'Female') return false;
+      if (genderFilter === 'Men' && p.gender !== 'Male') return false;
+      return matchesPlace;
+    });
+  }, [profiles, visitorPlace, genderFilter]);
+
   const handleResetFilters = () => {
     setSearchQuery('');
-    setGenderFilter('Everyone');
+    setGenderFilter(userPreference === 'Men' ? 'Men' : userPreference === 'Women' ? 'Women' : 'Everyone');
     setDistrictFilter('All Kerala');
     setOnlineOnly(false);
     setFavoritesOnly(false);
@@ -97,17 +139,20 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen pb-24 md:pb-16 bg-[#0A0812]">
-      {/* Visitor Onboarding Modal (Name -> Gender/Interest -> 6 Avatar Selection) */}
+    <div className="min-h-screen pb-28 md:pb-20 bg-[#0A0812]">
+      {/* Visitor Onboarding Modal (Name, Place, Gender/Interest, Avatar) */}
       <VisitorOnboardingModal isOpen={!isProfileComplete} />
 
+      {/* Cookie / Storage Consent Banner */}
+      <CookieConsentBanner />
+
       {/* Hero Banner Section */}
-      <section className="relative overflow-hidden pt-6 pb-10 sm:pt-12 sm:pb-14 px-4 sm:px-6 lg:px-8 border-b border-purple-900/30">
-        <div className="max-w-5xl mx-auto space-y-6">
+      <section className="relative overflow-hidden pt-6 pb-8 sm:pt-10 sm:pb-12 px-4 sm:px-6 lg:px-8 border-b border-purple-900/30">
+        <div className="max-w-5xl mx-auto space-y-4">
           
           {/* Main Headline Badge: Kerala Malayali Free Chats */}
           <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-emerald-950/80 via-purple-950/80 to-pink-950/80 border border-emerald-500/40 shadow-2xl shadow-emerald-950/40 text-center relative overflow-hidden">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30 mb-3 backdrop-blur-md">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30 mb-2.5 backdrop-blur-md">
               <span className="text-sm">🌴</span>
               <span>100% FREE KERALA CHATS</span>
               <span>•</span>
@@ -118,23 +163,41 @@ export default function HomePage() {
               Specially Made for Kerala Malayali Chats — 100% Entirely Free!
             </h1>
 
-            <p className="text-xs sm:text-sm text-pink-200/90 mt-2.5 max-w-2xl mx-auto leading-relaxed font-normal">
+            <p className="text-xs sm:text-sm text-pink-200/90 mt-2 max-w-2xl mx-auto leading-relaxed font-normal">
               കേരളത്തിലെ എല്ലാ ജില്ലകളിലെയും മലയാളികൾക്കായി പ്രത്യേകം തയ്യാറാക്കിയ ചാറ്റ് പ്ലാറ്റ്‌ഫോം. No subscriptions, no hidden charges — pick any avatar and start chatting freely right now!
             </p>
 
-            {/* If visitor has logged in / finished setup, show their greeting */}
+            {/* Visitor Greeting */}
             {visitorName && (
               <div className="mt-4 inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 text-xs text-white">
                 {visitorAvatar && (
                   <img src={visitorAvatar} alt={visitorName} className="w-5 h-5 rounded-full object-cover" />
                 )}
                 <span>Chatting as <strong className="text-pink-300">{visitorName}</strong></span>
+                {visitorPlace && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[11px]">
+                    📍 {visitorPlace}
+                  </span>
+                )}
               </div>
             )}
           </div>
 
+          {/* User Required Security & Identity Reminder Box */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 text-rose-200 text-xs flex items-start gap-3 shadow-lg shadow-rose-950/20">
+            <ShieldAlert className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+            <div className="space-y-0.5 text-left">
+              <h4 className="font-bold text-white text-xs sm:text-sm">
+                🛡️ Important Privacy Rule: Keep Your Identity Safe!
+              </h4>
+              <p className="text-[11px] sm:text-xs text-rose-200/90 leading-relaxed">
+                Don't share any personal details (real full name, personal phone number, private address, or financial info) with anyone in chat. It may reveal your personal identity. Simply chat and enjoy casual conversations anonymously!
+              </p>
+            </div>
+          </div>
+
           {/* Quick Stats Pill */}
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs text-slate-300 font-medium">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-slate-300 font-medium pt-1">
             <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               100+ Active Kerala Avatars
@@ -148,8 +211,8 @@ export default function HomePage() {
               All 14 Districts
             </span>
             <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/5">
-              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-              Strictly 20+ Adult Only
+              <Lock className="w-3.5 h-3.5 text-purple-400" />
+              End-to-End Encrypted
             </span>
           </div>
         </div>
@@ -157,6 +220,32 @@ export default function HomePage() {
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        
+        {/* If user selected a location (e.g. Palakkad), show suggestion banner */}
+        {visitorPlace && hometownMatches.length > 0 && (
+          <div className="mb-8 p-4 rounded-2xl bg-gradient-to-r from-emerald-950/60 to-purple-950/60 border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-sm font-bold text-white">
+                  People from <span className="text-emerald-300">{visitorPlace}</span> are available to interact!
+                </h3>
+                <p className="text-xs text-slate-300">
+                  Showing active members near your location. Other regions are locked below.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setDistrictFilter(visitorPlace)}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shrink-0"
+            >
+              Filter to {visitorPlace}
+            </button>
+          </div>
+        )}
+
         {/* Filters Bar */}
         <FilterBar
           searchQuery={searchQuery}
@@ -177,7 +266,7 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-pink-400" />
             <h2 className="text-lg font-bold text-white tracking-tight">
-              Kerala Profiles
+              Active Kerala Profiles ({genderFilter === 'Women' ? 'Girls Only' : genderFilter === 'Men' ? 'Boys Only' : 'All'})
             </h2>
             <span className="px-2.5 py-0.5 rounded-full bg-pink-500/15 border border-pink-500/30 text-xs text-pink-300 font-bold">
               {filteredProfiles.length}
@@ -212,6 +301,49 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* LOCKED REGIONAL CONTACTS SECTION */}
+        <section className="mt-16 pt-8 border-t border-purple-900/40">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Lock className="w-5 h-5 text-amber-400" />
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight">
+                  Locked Regional Contacts
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Tap any contact to see unlock requirements for this region.
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              🔒 Locked
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+            {lockedProfiles.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => handleLockedClick(item)}
+                className="group relative p-4 rounded-2xl bg-[#140F24]/80 hover:bg-[#1A1330] border border-amber-500/20 hover:border-amber-500/50 cursor-pointer transition-all flex flex-col items-center text-center shadow-md transform hover:-translate-y-1"
+              >
+                <div className="w-14 h-14 rounded-2xl bg-black/50 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-2 group-hover:scale-105 transition-transform">
+                  <Lock className="w-6 h-6 stroke-[2.5]" />
+                </div>
+                <span className="text-xs font-bold text-white truncate max-w-full">
+                  {item.name}
+                </span>
+                <span className="text-[11px] font-semibold text-amber-300 mt-0.5 truncate max-w-full">
+                  📍 {item.place}
+                </span>
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-400 mt-1.5">
+                  Tap to Unlock
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* Preferred Age Group Selector */}
         <div className="mt-14 mb-8">
           <AgeFilter
@@ -221,6 +353,45 @@ export default function HomePage() {
           />
         </div>
       </main>
+
+      {/* Modal for Locked Regional Contact */}
+      {selectedLocked && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-sm bg-[#130E22] border border-amber-500/30 rounded-3xl p-6 shadow-2xl text-center space-y-4">
+            <button
+              onClick={() => setSelectedLocked(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 mx-auto flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <Lock className="w-7 h-7" />
+            </div>
+
+            <h3 className="text-lg font-bold text-white">
+              Unlock Contact: {selectedLocked.place}
+            </h3>
+
+            <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 text-left text-xs space-y-2 text-slate-200">
+              <div className="font-semibold text-pink-300 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Unlock Requirements:</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-slate-300">
+                To unlock contacts from <strong>{selectedLocked.place}</strong>, chat with a minimum of <strong>5 people</strong> from the active list above and share at least <strong>3 images/videos</strong> without losing or revealing your identity.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setSelectedLocked(null)}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:opacity-95 text-white font-bold text-xs shadow-md shadow-pink-600/30 transition-all"
+            >
+              Start Unlocking Now!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
