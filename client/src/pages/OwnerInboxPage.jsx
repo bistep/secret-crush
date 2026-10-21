@@ -345,11 +345,13 @@ export default function OwnerInboxPage() {
       if (!matchesVisitor && !matchesPersona && !matchesMsg) return false;
     }
     if (filterTab === 'unread' && (!c.unreadByOwner || c.unreadByOwner === 0)) return false;
+    if (filterTab === 'offline' && (!c.offlineUnreadCount || c.offlineUnreadCount === 0)) return false;
     if (filterTab === 'online' && !c.visitorOnline) return false;
     return true;
   });
 
   const totalUnread = conversations.reduce((acc, c) => acc + (c.unreadByOwner || 0), 0);
+  const totalOfflineMissed = conversations.reduce((acc, c) => acc + (c.offlineUnreadCount || 0), 0);
   const onlineCount = conversations.filter(c => c.visitorOnline).length;
 
   // --- RENDER LOGIN FORM IF NOT AUTHENTICATED ---
@@ -451,6 +453,14 @@ export default function OwnerInboxPage() {
             <span>Unread: <strong>{totalUnread}</strong></span>
           </div>
 
+          {/* Offline Missed Counter */}
+          {totalOfflineMissed > 0 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 animate-pulse" title="Messages received while admin was logged out">
+              <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+              <span>Offline Missed: <strong>{totalOfflineMissed}</strong></span>
+            </div>
+          )}
+
           {/* Sound alert toggle */}
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
@@ -509,16 +519,17 @@ export default function OwnerInboxPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl text-xs font-medium">
+            <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl text-[11px] font-medium">
               {[
                 { id: 'all', label: `All (${conversations.length})` },
                 { id: 'unread', label: `Unread (${totalUnread})` },
+                { id: 'offline', label: `📬 Offline (${totalOfflineMissed})` },
                 { id: 'online', label: `Online (${onlineCount})` },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setFilterTab(tab.id)}
-                  className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${
+                  className={`flex-1 py-1 px-1 rounded-lg text-center transition-all ${
                     filterTab === tab.id
                       ? 'bg-purple-600 text-white shadow-sm font-semibold'
                       : 'text-slate-400 hover:text-white'
@@ -529,6 +540,18 @@ export default function OwnerInboxPage() {
               ))}
             </div>
           </div>
+
+          {/* Offline Messages Stored Banner */}
+          {totalOfflineMissed > 0 && (
+            <div className="p-3 bg-gradient-to-r from-amber-950/60 via-purple-950/60 to-pink-950/60 border-b border-amber-500/30 text-amber-200 text-xs flex items-center justify-between shadow-inner">
+              <div className="flex items-center gap-2">
+                <span className="text-base">📬</span>
+                <span>
+                  <strong>{totalOfflineMissed} message{totalOfflineMissed > 1 ? 's' : ''}</strong> received while admin was off. Saved safely!
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Conversations Scroll List */}
           <div className="flex-1 overflow-y-auto divide-y divide-purple-900/20">
@@ -593,12 +616,19 @@ export default function OwnerInboxPage() {
                       </p>
                     </div>
 
-                    {/* Unread badge */}
-                    {conv.unreadByOwner > 0 && (
-                      <span className="w-5 h-5 rounded-full bg-pink-500 text-white text-[11px] font-bold flex items-center justify-center shrink-0 animate-pulse">
-                        {conv.unreadByOwner}
-                      </span>
-                    )}
+                    {/* Unread & Offline badges */}
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      {conv.unreadByOwner > 0 && (
+                        <span className="w-5 h-5 rounded-full bg-pink-500 text-white text-[11px] font-bold flex items-center justify-center animate-pulse">
+                          {conv.unreadByOwner}
+                        </span>
+                      )}
+                      {conv.offlineUnreadCount > 0 && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 whitespace-nowrap">
+                          📬 Offline
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })
@@ -687,6 +717,12 @@ export default function OwnerInboxPage() {
                           {isVisitor ? `Visitor (${activeConversationData.conversation.visitorId})` : `You as ${activeConversationData.persona?.name}`}
                         </span>
                         <span className="text-[10px] text-slate-500">{time}</span>
+                        {msg.receivedWhileAdminOffline && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold flex items-center gap-1">
+                            <span>📬</span>
+                            <span>Received while you were offline</span>
+                          </span>
+                        )}
                       </div>
 
                       <div

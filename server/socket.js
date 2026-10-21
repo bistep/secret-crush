@@ -117,17 +117,19 @@ export function setupSocket(io) {
         return;
       }
 
+      const isAdminOnline = activeOwnerSockets.size > 0;
       const conv = db.getConversation(visitorId, personaId);
       const convId = conv.id;
 
-      // Save message in DB
+      // Save message in DB (tagged if received while admin was offline)
       const message = db.addMessage({
         conversationId: convId,
         visitorId,
         personaId,
         sender: 'visitor',
         content,
-        type: type || 'text'
+        type: type || 'text',
+        receivedWhileAdminOffline: !isAdminOnline
       });
 
       // Deliver to visitor's conversation room
@@ -156,8 +158,8 @@ export function setupSocket(io) {
 
       // Send instant owner email notification for new visitor message
       sendOwnerAlert({
-        subject: `New Message from Visitor to ${persona ? persona.name : personaId}`,
-        text: `Visitor (${visitorId}) just sent a message to ${persona ? persona.name : personaId}:\n\n"${content}"\n\nLogin to reply directly from your laptop:\nhttps://secret-crush.onrender.com/owner/inbox`
+        subject: `${!isAdminOnline ? '[OFFLINE MISSED MESSAGE] ' : ''}New Message from Visitor to ${persona ? persona.name : personaId}`,
+        text: `Visitor (${visitorId}) just sent a message to ${persona ? persona.name : personaId}${!isAdminOnline ? ' (WHILE ADMIN WAS OFFLINE)' : ''}:\n\n"${content}"\n\nLogin to reply directly from your laptop:\nhttps://secret-crush.onrender.com/owner/inbox`
       });
     });
 

@@ -321,26 +321,57 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
-            {lockedProfiles.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => handleLockedClick(item)}
-                className="group relative p-4 rounded-2xl bg-[#140F24]/80 hover:bg-[#1A1330] border border-amber-500/20 hover:border-amber-500/50 cursor-pointer transition-all flex flex-col items-center text-center shadow-md transform hover:-translate-y-1"
-              >
-                <div className="w-14 h-14 rounded-2xl bg-black/50 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-2 group-hover:scale-105 transition-transform">
-                  <Lock className="w-6 h-6 stroke-[2.5]" />
+            {lockedProfiles.map((item) => {
+              const isVault = item.is_vault || item.id === 'lock_250_plus';
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => handleLockedClick(item)}
+                  className={`group relative p-4 rounded-2xl cursor-pointer transition-all flex flex-col items-center text-center shadow-md transform hover:-translate-y-1 ${
+                    isVault
+                      ? 'bg-gradient-to-b from-amber-950/70 via-[#1A1330] to-purple-950/70 border-2 border-amber-400 hover:border-amber-300 ring-1 ring-amber-400/40 shadow-lg shadow-amber-500/10'
+                      : 'bg-[#140F24]/80 hover:bg-[#1A1330] border border-amber-500/20 hover:border-amber-500/50'
+                  }`}
+                >
+                  {isVault && (
+                    <div className="absolute -top-2.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 via-rose-500 to-pink-500 text-black font-extrabold text-[9px] uppercase tracking-wider shadow-md">
+                      250+ Chats
+                    </div>
+                  )}
+
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-2 group-hover:scale-105 transition-transform ${
+                    isVault
+                      ? 'bg-gradient-to-br from-amber-500/30 to-pink-500/20 border border-amber-400/60 text-amber-300 shadow-inner'
+                      : 'bg-black/50 border border-amber-500/30 text-amber-400'
+                  }`}>
+                    {isVault ? (
+                      <div className="flex flex-col items-center justify-center">
+                        <Lock className="w-5 h-5 stroke-[2.5]" />
+                        <span className="text-[9px] font-black tracking-tight text-amber-300">250+</span>
+                      </div>
+                    ) : (
+                      <Lock className="w-6 h-6 stroke-[2.5]" />
+                    )}
+                  </div>
+
+                  <span className={`text-xs font-bold truncate max-w-full ${isVault ? 'text-amber-200 font-extrabold' : 'text-white'}`}>
+                    {item.name}
+                  </span>
+
+                  <span className="text-[11px] font-semibold text-amber-300 mt-0.5 truncate max-w-full">
+                    📍 {item.place}
+                  </span>
+
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full mt-1.5 font-semibold ${
+                    isVault
+                      ? 'bg-amber-500/25 text-amber-300 border border-amber-400/40 animate-pulse'
+                      : 'bg-white/5 border border-white/10 text-slate-400'
+                  }`}>
+                    {isVault ? 'Tap to Unlock 250+' : 'Tap to Unlock'}
+                  </span>
                 </div>
-                <span className="text-xs font-bold text-white truncate max-w-full">
-                  {item.name}
-                </span>
-                <span className="text-[11px] font-semibold text-amber-300 mt-0.5 truncate max-w-full">
-                  📍 {item.place}
-                </span>
-                <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-400 mt-1.5">
-                  Tap to Unlock
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -370,7 +401,9 @@ export default function HomePage() {
             </div>
 
             <h3 className="text-lg font-bold text-white">
-              Unlock Contact: {selectedLocked.place}
+              {selectedLocked.is_vault || selectedLocked.id === 'lock_250_plus'
+                ? 'Unlock 250+ Kerala Contacts Vault'
+                : `Unlock Contact: ${selectedLocked.place}`}
             </h3>
 
             <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 text-left text-xs space-y-2 text-slate-200">
@@ -379,7 +412,15 @@ export default function HomePage() {
                 <span>Unlock Requirements:</span>
               </div>
               <p className="text-[11px] leading-relaxed text-slate-300">
-                To unlock contacts from <strong>{selectedLocked.place}</strong>, chat with a minimum of <strong>5 people</strong> from the active list above and share at least <strong>3 images/videos</strong> without losing or revealing your identity.
+                {selectedLocked.is_vault || selectedLocked.id === 'lock_250_plus' ? (
+                  <>
+                    To unlock the entire vault of <strong>250+ private contacts</strong> across all 14 Kerala districts, chat with a minimum of <strong>5 active members</strong> and share at least <strong>3 photos/videos</strong> without revealing your identity.
+                  </>
+                ) : (
+                  <>
+                    To unlock contacts from <strong>{selectedLocked.place}</strong>, chat with a minimum of <strong>5 people</strong> from the active list above and share at least <strong>3 images/videos</strong> without losing or revealing your identity.
+                  </>
+                )}
               </p>
             </div>
 

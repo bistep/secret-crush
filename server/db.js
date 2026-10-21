@@ -181,7 +181,9 @@ class Database {
           personaAvatar: persona.avatar_url,
           personaLocation: persona.location,
           personaPlace: persona.place,
-          personaHandle: persona.handle
+          personaHandle: persona.handle,
+          hasOfflineMessages: (c.offlineUnreadCount || 0) > 0,
+          offlineUnreadCount: c.offlineUnreadCount || 0
         };
       })
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
@@ -192,7 +194,7 @@ class Database {
     return this.data.messages.filter(m => m.conversationId === conversationId);
   }
 
-  addMessage({ conversationId, visitorId, personaId, sender, content, type = 'text' }) {
+  addMessage({ conversationId, visitorId, personaId, sender, content, type = 'text', receivedWhileAdminOffline = false }) {
     const isImage = type === 'image' || (typeof content === 'string' && content.startsWith('data:image/'));
     const isVideo = type === 'video' || (typeof content === 'string' && content.startsWith('data:video/'));
     let msgType = 'text';
@@ -208,7 +210,8 @@ class Database {
       content: content.trim(),
       type: msgType,
       createdAt: new Date().toISOString(),
-      isRead: false
+      isRead: false,
+      receivedWhileAdminOffline: !!receivedWhileAdminOffline
     };
 
     this.data.messages.push(message);
@@ -221,9 +224,28 @@ class Database {
       conv.lastSender = sender;
       if (sender === 'visitor') {
         conv.unreadByOwner = (conv.unreadByOwner || 0) + 1;
+        if (receivedWhileAdminOffline) {
+          conv.offlineUnreadCount = (conv.offlineUnreadCount || 0) + 1;
+        }
       } else {
         conv.unreadByVisitor = (conv.unreadByVisitor || 0) + 1;
       }
+    }
+
+    // Persist to offline queue array as well
+    if (receivedWhileAdminOffline && sender === 'visitor') {
+      if (!this.data.offlineInbox) {
+        this.data.offlineInbox = [];
+      }
+      this.data.offlineInbox.unshift({
+        id: message.id,
+        conversationId,
+        visitorId,
+        personaId,
+        content: message.content,
+        type: msgType,
+        createdAt: message.createdAt
+      });
     }
 
     this.save();
@@ -272,7 +294,10 @@ class Database {
 
     const conv = this.data.conversations[conversationId];
     if (conv) {
-      if (readerType === 'owner') conv.unreadByOwner = 0;
+      if (readerType === 'owner') {
+        conv.unreadByOwner = 0;
+        conv.offlineUnreadCount = 0;
+      }
       if (readerType === 'visitor') conv.unreadByVisitor = 0;
       updated = true;
     }

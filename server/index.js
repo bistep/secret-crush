@@ -241,7 +241,9 @@ app.post('/api/messages', (req, res) => {
     visitorId,
     personaId,
     sender: 'visitor',
-    content
+    content,
+    type: req.body.type || 'text',
+    receivedWhileAdminOffline: true
   });
 
   // Notify owner room via socket

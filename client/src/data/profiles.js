@@ -131,7 +131,7 @@ export const LOCKED_REGIONAL_PROFILES = [
   { id: 'lock_varkala', name: 'Private Contact', age: 22, place: 'North Cliff, Varkala', gender: 'Female', is_locked: true },
   { id: 'lock_cherthala', name: 'Private Contact', age: 24, place: 'Cherthala, Alappuzha', gender: 'Male', is_locked: true },
   { id: 'lock_sulthan_bathery', name: 'Private Contact', age: 23, place: 'Sulthan Bathery, Wayanad', gender: 'Female', is_locked: true },
-  { id: 'lock_thiruvalla', name: 'Private Contact', age: 25, place: 'Thiruvalla, Pathanamthitta', gender: 'Male', is_locked: true }
+  { id: 'lock_250_plus', name: '250+ Locked Chats', age: '18-35', place: '250+ Across Kerala', gender: 'All', is_locked: true, is_vault: true, badgeText: '250+ Locked' }
 ];
 
 export const DEMO_PROFILES = [
