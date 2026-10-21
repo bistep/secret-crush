@@ -1025,27 +1025,33 @@ export default function OwnerInboxPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Quick Reply Starters */}
-              <div className="px-4 py-2 bg-[#0E0A1A] border-t border-purple-900/30">
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 text-xs">
-                  <span className="text-[11px] text-purple-300 font-semibold shrink-0">Quick Replies:</span>
-                  {[
-                    "Hey! So good to hear from you 😊",
-                    "Haha you have great energy! What are you doing tonight? ✨",
-                    "You caught my attention for sure ❤️",
-                    "Tell me something interesting about yourself!",
-                    "That sounds lovely! Let's talk more 🥂"
-                  ].map((preset, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleQuickReply(preset)}
-                      className="shrink-0 px-2.5 py-1 rounded-full bg-white/5 hover:bg-purple-600/20 text-slate-300 hover:text-purple-200 border border-white/10 text-[11px] transition-all"
-                    >
-                      {preset}
-                    </button>
-                  ))}
+              {/* Bottom Auto Reply Customization Bar (Replaces Quick Replies) */}
+              <div className="px-4 py-2.5 bg-gradient-to-r from-purple-950/60 via-[#130E24] to-pink-950/40 border-t border-purple-500/40 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-600/25 border border-purple-500/40 text-purple-200 font-bold text-xs">
+                    <Bot className="w-4 h-4 text-emerald-400" />
+                    <span>Auto-Reply:</span>
+                    <strong className={autoReplyEnabled ? 'text-emerald-400' : 'text-slate-400'}>
+                      {autoReplyEnabled ? 'ON' : 'OFF'}
+                    </strong>
+                  </div>
+                  <span className="text-[11px] text-slate-300 font-semibold">
+                    ({replies.length}/10 configured)
+                  </span>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setValidationError('');
+                    setShowAutoReplyModal(true);
+                  }}
+                  className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:opacity-95 text-white font-extrabold text-xs shadow-md shadow-purple-600/30 flex items-center gap-1.5 transition-all cursor-pointer"
+                  title="Configure and customize auto-reply sequential messages"
+                >
+                  <Sliders className="w-3.5 h-3.5 text-pink-200" />
+                  <span>Auto Reply Customization</span>
+                </button>
               </div>
 
               {/* Persona Selector Bar (Chat via Somebody) */}
