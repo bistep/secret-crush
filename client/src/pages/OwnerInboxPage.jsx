@@ -570,12 +570,14 @@ export default function OwnerInboxPage() {
 
           {/* Custom Auto-Replies Config Button */}
           <button
-            onClick={() => setShowAutoReplyModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/35 text-purple-200 border border-purple-500/40 text-xs font-semibold transition-all shadow-sm"
-            title="Configure Auto-Reply Messages and Rules"
+            onClick={() => {
+              setSelectedConvId(null);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/50 text-xs font-bold transition-all shadow-sm cursor-pointer"
+            title="Open Customize Auto-Reply Chat panel"
           >
             <Sliders className="w-3.5 h-3.5 text-purple-300" />
-            <span className="hidden sm:inline">Rules & Templates</span>
+            <span>Customize Auto-Replies</span>
           </button>
 
           {/* Logout button */}
@@ -984,15 +986,178 @@ export default function OwnerInboxPage() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center p-8 text-center">
-              <div className="max-w-md space-y-3">
-                <div className="w-16 h-16 rounded-2xl bg-purple-600/10 border border-purple-600/20 text-purple-400 mx-auto flex items-center justify-center">
-                  <MessageSquare className="w-8 h-8" />
+            <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-[#0A0812]">
+              <div className="max-w-2xl mx-auto space-y-6">
+                {/* Header banner */}
+                <div className="p-6 rounded-3xl bg-gradient-to-r from-purple-900/40 via-[#16102B] to-pink-900/30 border border-purple-500/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-600 flex items-center justify-center text-white shadow-lg shadow-purple-600/30 shrink-0">
+                      <Bot className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          Automated Chat Engine
+                        </span>
+                      </div>
+                      <h2 className="text-xl font-extrabold text-white mt-1">
+                        Customize Auto-Reply Chat
+                      </h2>
+                      <p className="text-xs text-slate-300 mt-0.5">
+                        Set custom auto-replies, typing delay, and keyword rules when visitors message.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={toggleAutoReply}
+                    className={`px-4 py-2.5 rounded-2xl border font-bold text-xs flex items-center gap-2 transition-all shadow-md shrink-0 ${
+                      autoReplyEnabled
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30'
+                        : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    <span className={`w-2.5 h-2.5 rounded-full ${autoReplyEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                    <span>Auto-Reply: <strong>{autoReplyEnabled ? 'ON' : 'OFF'}</strong></span>
+                  </button>
                 </div>
-                <h3 className="text-lg font-bold text-white">Select a Conversation</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Choose a visitor conversation from the left to view message history and reply in real time.
-                </p>
+
+                {/* Global Settings */}
+                <div className="p-5 rounded-2xl bg-[#130E24] border border-purple-900/40 shadow-sm space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-purple-300 flex items-center gap-2">
+                    <Sliders className="w-4 h-4" />
+                    <span>General Auto-Reply Settings</span>
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                        Typing Delay (Seconds)
+                      </label>
+                      <input
+                        type="number"
+                        min="2"
+                        max="30"
+                        value={autoReplyDelaySec}
+                        onChange={(e) => setAutoReplyDelaySec(e.target.value)}
+                        className="w-full py-2.5 px-3.5 rounded-xl bg-white/5 border border-white/10 text-white font-mono text-sm focus:outline-none focus:border-purple-500"
+                      />
+                      <span className="text-[11px] text-slate-400 mt-1 block">
+                        Wait time with live typing animation before auto-reply sends
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col justify-end">
+                      <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-300 space-y-1">
+                        <span className="font-semibold text-pink-300">💡 How it works:</span>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          When a visitor sends a message while you are away, the bot shows a realistic typing indicator for {autoReplyDelaySec} seconds and replies automatically.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rules Manager */}
+                <div className="p-5 rounded-2xl bg-[#130E24] border border-purple-900/40 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-purple-300 flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4" />
+                        <span>Custom Auto-Reply Rules ({customRules.length})</span>
+                      </h3>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Add keyword triggers and custom messages to reply with
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddRule}
+                      className="px-3 py-1.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add New Rule</span>
+                    </button>
+                  </div>
+
+                  {customRules.length === 0 ? (
+                    <div className="p-6 text-center text-slate-500 text-xs rounded-xl bg-black/20 border border-dashed border-white/10">
+                      No custom rules added yet. Click &quot;Add New Rule&quot; to configure your first auto-reply.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {customRules.map((rule, idx) => (
+                        <div
+                          key={rule.id || idx}
+                          className="p-4 rounded-2xl bg-[#19142D] border border-purple-900/50 space-y-3 shadow-sm hover:border-purple-600/40 transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex-1">
+                              <label className="text-[11px] uppercase font-bold text-slate-400 block mb-1">
+                                If visitor message contains (keyword or <span className="text-pink-400">*</span> for any message):
+                              </label>
+                              <input
+                                type="text"
+                                value={rule.trigger}
+                                onChange={(e) => handleUpdateRule(rule.id, 'trigger', e.target.value)}
+                                placeholder="e.g. hi, hello, or *"
+                                className="w-full py-2 px-3 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRule(rule.id)}
+                              className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/25 text-rose-300 border border-rose-500/20 transition-colors self-end"
+                              title="Delete rule"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <div>
+                            <label className="text-[11px] uppercase font-bold text-slate-400 block mb-1">
+                              Auto-Reply Response Message:
+                            </label>
+                            <textarea
+                              rows="2"
+                              value={rule.response}
+                              onChange={(e) => handleUpdateRule(rule.id, 'response', e.target.value)}
+                              placeholder="Type the message to send automatically..."
+                              className="w-full py-2 px-3 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 resize-none"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Save Settings Button */}
+                  <div className="pt-2 flex items-center justify-between">
+                    {saveSuccess ? (
+                      <span className="text-xs text-emerald-400 font-bold flex items-center gap-1.5 animate-bounce">
+                        <Check className="w-4 h-4" />
+                        <span>Settings saved to live server!</span>
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-slate-400">
+                        Changes take effect immediately on your server.
+                      </span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleSaveAutoReplySettings}
+                      disabled={savingSettings}
+                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:opacity-95 text-white text-xs font-extrabold shadow-lg shadow-purple-600/30 flex items-center gap-2 transition-all disabled:opacity-50"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>{savingSettings ? 'Saving...' : 'Save Auto-Reply Settings'}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
