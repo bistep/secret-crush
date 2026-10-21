@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Heart, Sparkles, Users, Flame, RefreshCw, MapPin, Lock, ShieldAlert, CheckCircle2, X } from 'lucide-react';
+import { Heart, Sparkles, Users, Flame, RefreshCw, MapPin, Lock, ShieldAlert, CheckCircle2, X, Crown, MessageCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { DEMO_PROFILES, LOCKED_REGIONAL_PROFILES } from '../data/profiles';
 import ProfileCard from '../components/ProfileCard';
@@ -37,13 +37,47 @@ export default function HomePage() {
   // Modal for locked contact click
   const [selectedLocked, setSelectedLocked] = useState(null);
 
+  // Modal for "To be a Premium customer" (50+ Chats Section)
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [isReturningVisitor, setIsReturningVisitor] = useState(false);
+
+  // Check if returning client & rotate names/profiles so returning clients see fresh faces
+  useEffect(() => {
+    try {
+      const hasEnteredBefore = localStorage.getItem('secret_crush_has_entered') || localStorage.getItem('sc_visitor_id');
+      if (hasEnteredBefore) {
+        setIsReturningVisitor(true);
+        // Shift profiles so returning clients see fresh/different profiles at the top
+        const shiftSeed = Math.floor(Math.random() * 25) + 1;
+        setProfiles(prev => {
+          if (!prev || prev.length <= shiftSeed) return prev;
+          return [...prev.slice(shiftSeed), ...prev.slice(0, shiftSeed)];
+        });
+      } else {
+        localStorage.setItem('secret_crush_has_entered', 'true');
+      }
+    } catch (e) {
+      // localStorage disabled fallback
+    }
+  }, []);
+
   // Fetch updated profiles from backend if available
   useEffect(() => {
     fetch('/api/profiles')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
-          setProfiles(data);
+          try {
+            const hasEnteredBefore = localStorage.getItem('secret_crush_has_entered');
+            if (hasEnteredBefore) {
+              const shiftSeed = Math.floor(Math.random() * Math.min(25, data.length));
+              setProfiles([...data.slice(shiftSeed), ...data.slice(0, shiftSeed)]);
+            } else {
+              setProfiles(data);
+            }
+          } catch (e) {
+            setProfiles(data);
+          }
         }
       })
       .catch(() => {});
@@ -57,6 +91,21 @@ export default function HomePage() {
       setGenderFilter('Men');
     }
   }, [userPreference]);
+
+  // Handle clicking on "To be a Premium customer"
+  const handlePremiumClick = () => {
+    setShowPremiumModal(true);
+    // Send alert to admin backend
+    fetch('/api/visitors/unlock-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        visitorId,
+        profileId: 'premium_vip_50_chats',
+        place: `${visitorPlace || 'Kerala'} (Tapped To be a Premium Customer - 50+ Chats Requirement)`
+      })
+    }).catch(err => console.log('Unlock alert sent offline'));
+  };
 
   // Handle clicking on a locked regional contact
   const handleLockedClick = (lockedItem) => {
@@ -261,6 +310,46 @@ export default function HomePage() {
           favoritesCount={favorites.length}
         />
 
+        {/* PREMIUM CUSTOMERS BANNER & UNLOCK SECTION */}
+        <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-[#1A1330] to-purple-950/60 border border-amber-500/40 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-300 text-black flex items-center justify-center shrink-0 shadow-md shadow-amber-500/25">
+              <Crown className="w-6 h-6 stroke-[2.5]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-400 text-black uppercase tracking-wider shadow-sm">
+                  👑 Premium Customer
+                </span>
+                {isReturningVisitor && (
+                  <span className="text-[11px] font-bold text-pink-300">
+                    Welcome back{visitorName ? `, ${visitorName}` : ''}!
+                  </span>
+                )}
+              </div>
+              <h3 className="text-sm sm:text-base font-bold text-white mt-1">
+                These are our premium customer.
+              </h3>
+              <p className="text-xs text-amber-200/90 mt-0.5 leading-relaxed">
+                Make chats to unlock the other customers.
+              </p>
+            </div>
+          </div>
+
+          {/* Button: To be a Premium customer (Locked) */}
+          <button
+            onClick={handlePremiumClick}
+            className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-black font-extrabold text-xs shadow-md shadow-amber-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer transform hover:scale-[1.02] active:scale-95 shrink-0"
+            title="Click to view requirements to become a Premium Customer"
+          >
+            <Lock className="w-4 h-4 stroke-[2.5]" />
+            <span>To be a Premium customer</span>
+            <span className="px-1.5 py-0.5 rounded bg-black/20 text-[9px] text-black font-black uppercase tracking-wider">
+              🔒 Locked
+            </span>
+          </button>
+        </div>
+
         {/* Section Heading & Result Count */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
@@ -429,6 +518,94 @@ export default function HomePage() {
               className="w-full py-3 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:opacity-95 text-white font-bold text-xs shadow-md shadow-pink-600/30 transition-all"
             >
               Start Unlocking Now!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal for "To be a Premium customer" (50+ Chats Section Locked) */}
+      {showPremiumModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-md bg-[#130E22] border-2 border-amber-500/40 rounded-3xl p-6 sm:p-7 shadow-2xl text-center space-y-5">
+            <button
+              onClick={() => setShowPremiumModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Glowing Icon */}
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-300 text-black mx-auto flex items-center justify-center shadow-xl shadow-amber-500/30">
+              <Crown className="w-9 h-9 stroke-[2.5]" />
+            </div>
+
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold mb-2">
+                <Lock className="w-3.5 h-3.5" />
+                <span>Premium Section Locked</span>
+              </div>
+              <h3 className="text-xl font-extrabold text-white">
+                To be a Premium Customer
+              </h3>
+              <p className="text-xs text-slate-300 mt-1">
+                Unlock 250+ hidden private profiles and full VIP privileges across Kerala.
+              </p>
+            </div>
+
+            {/* Conversation Requirement Box (50+ Chats) */}
+            <div className="p-4 rounded-2xl bg-gradient-to-b from-amber-500/10 to-transparent border border-amber-500/30 text-left space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                  <MessageCircle className="w-4 h-4 text-amber-400" />
+                  Conversation Requirement:
+                </span>
+                <span className="text-xs font-black px-2.5 py-0.5 rounded-md bg-amber-400 text-black shadow-sm">
+                  50+ Chats
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-200 leading-relaxed">
+                To unlock the <strong>Premium Customer section</strong> and view all hidden private profiles, you need to initiate conversations and complete <strong>50+ chats</strong> with our active featured members.
+              </p>
+
+              {/* Progress Bar Visual */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex justify-between text-[11px] text-slate-400 font-semibold">
+                  <span>Chat Progress</span>
+                  <span className="text-amber-300">0 / 50 chats completed</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-black/60 overflow-hidden border border-white/10">
+                  <div className="w-1.5 h-full bg-gradient-to-r from-amber-500 to-pink-500 rounded-full" />
+                </div>
+              </div>
+            </div>
+
+            {/* Premium Perks Grid */}
+            <div className="grid grid-cols-2 gap-2 text-left text-[11px] text-slate-300">
+              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>All 250+ Kerala profiles unlocked</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Unlimited live camera photos</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>View-once video sharing</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>100% Anonymous & Encrypted</span>
+              </div>
+            </div>
+
+            {/* Action button */}
+            <button
+              onClick={() => setShowPremiumModal(false)}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-pink-600 to-purple-600 hover:opacity-95 text-white font-extrabold text-xs shadow-lg shadow-pink-600/30 transition-all uppercase tracking-wider"
+            >
+              Start Chatting to Reach 50+ Chats
             </button>
           </div>
         </div>
