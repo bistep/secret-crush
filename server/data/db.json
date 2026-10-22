@@ -1433,20 +1433,20 @@
     "replies": [
       {
         "id": "reply-1",
-        "text": "Hi! 😊 Enthokkeyund vishesham?",
+        "text": "Hlo",
         "sequence": 1,
         "enabled": true
       },
       {
         "id": "reply-2",
-        "text": "Njan Kerala thanneya 😊 Thaan evidunnanu? 🌴",
+        "text": "Edo njan sex chat aan nokkunne thanikk thalpparyam undo.",
         "sequence": 2,
         "enabled": true
       }
     ],
     "autoReplySequence": [
-      "Hi! 😊 Enthokkeyund vishesham?",
-      "Njan Kerala thanneya 😊 Thaan evidunnanu? 🌴"
+      "Hlo",
+      "Edo njan sex chat aan nokkunne thanikk thalpparyam undo."
     ]
   }
 }

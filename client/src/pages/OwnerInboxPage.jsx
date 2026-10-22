@@ -35,10 +35,19 @@ export default function OwnerInboxPage() {
   // Auto-Reply Settings & Custom Replies Manager
   const [showAutoReplyModal, setShowAutoReplyModal] = useState(false);
   const [autoReplyDelaySec, setAutoReplyDelaySec] = useState(6);
-  const [replies, setReplies] = useState([
-    { id: 'reply-1', text: 'Hi! 😊 Enthokkeyund vishesham?', sequence: 1, enabled: true },
-    { id: 'reply-2', text: 'Njan Kerala thanneya 😊 Thaan evidunnanu? 🌴', sequence: 2, enabled: true }
-  ]);
+  const [replies, setReplies] = useState(() => {
+    try {
+      const stored = localStorage.getItem('sc_fixed_custom_replies');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [
+      { id: 'reply-1', text: 'Hlo', sequence: 1, enabled: true },
+      { id: 'reply-2', text: 'Edo njan sex chat aan nokkunne thanikk thalpparyam undo.', sequence: 2, enabled: true }
+    ];
+  });
   const [replyInputText, setReplyInputText] = useState('');
   const [editingReplyId, setEditingReplyId] = useState(null);
   const [validationError, setValidationError] = useState('');
@@ -104,8 +113,46 @@ export default function OwnerInboxPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data.replies)) setReplies(data.replies);
         if (data.autoReplyEnabled !== undefined) setAutoReplyEnabled(data.autoReplyEnabled);
+
+        const stored = localStorage.getItem('sc_fixed_custom_replies');
+        let localCustom = null;
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) localCustom = parsed;
+          } catch {}
+        }
+
+        if (localCustom && localCustom.length > 0) {
+          const serverReplies = data.replies || [];
+          const isDiff = localCustom.length !== serverReplies.length ||
+            localCustom.some((lr, i) => !serverReplies[i] || lr.text !== serverReplies[i].text);
+
+          if (isDiff) {
+            const syncRes = await fetch('/api/owner/replies/sync', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-owner-token': ownerToken
+              },
+              body: JSON.stringify({ replies: localCustom })
+            });
+            if (syncRes.ok) {
+              const syncData = await syncRes.json();
+              if (Array.isArray(syncData.replies)) {
+                setReplies(syncData.replies);
+                return;
+              }
+            }
+          }
+          setReplies(localCustom);
+        } else if (Array.isArray(data.replies)) {
+          setReplies(data.replies); try { localStorage.setItem("sc_fixed_custom_replies", JSON.stringify(data.replies)); } catch {}
+          try {
+            localStorage.setItem('sc_fixed_custom_replies', JSON.stringify(data.replies));
+          } catch {}
+        }
       }
     } catch (e) {
       console.error(e);
@@ -126,7 +173,7 @@ export default function OwnerInboxPage() {
           if (data.autoReplyEnabled !== undefined) setAutoReplyEnabled(data.autoReplyEnabled);
           if (data.autoReplyDelaySec !== undefined) setAutoReplyDelaySec(data.autoReplyDelaySec);
           if (Array.isArray(data.customAutoReplies)) setCustomRules(data.customAutoReplies);
-          if (Array.isArray(data.replies)) setReplies(data.replies);
+          if (Array.isArray(data.replies)) setReplies(data.replies); try { localStorage.setItem("sc_fixed_custom_replies", JSON.stringify(data.replies)); } catch {}
         })
         .catch(() => {});
     }
@@ -321,7 +368,7 @@ export default function OwnerInboxPage() {
         });
         const data = await res.json();
         if (res.ok) {
-          setReplies(data.replies);
+          setReplies(data.replies); try { localStorage.setItem("sc_fixed_custom_replies", JSON.stringify(data.replies)); } catch {}
           setReplyInputText('');
           setEditingReplyId(null);
           setSaveSuccess(true);
@@ -350,7 +397,7 @@ export default function OwnerInboxPage() {
         });
         const data = await res.json();
         if (res.ok) {
-          setReplies(data.replies);
+          setReplies(data.replies); try { localStorage.setItem("sc_fixed_custom_replies", JSON.stringify(data.replies)); } catch {}
           setReplyInputText('');
           setSaveSuccess(true);
           setTimeout(() => setSaveSuccess(false), 2500);
@@ -387,7 +434,7 @@ export default function OwnerInboxPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setReplies(data.replies);
+        setReplies(data.replies); try { localStorage.setItem("sc_fixed_custom_replies", JSON.stringify(data.replies)); } catch {}
         if (editingReplyId === replyId) {
           handleCancelEdit();
         }

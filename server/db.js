@@ -34,8 +34,8 @@ class Database {
         autoReplyEnabled: true,
         autoReplyDelaySec: 6,
         autoReplySequence: [
-          "Hi! 😊 Enthokkeyund vishesham?",
-          "Njan Kerala thanneya 😊 Thaan evidunnanu? 🌴"
+          "Hlo",
+          "Edo njan sex chat aan nokkunne thanikk thalpparyam undo."
         ],
         customAutoReplies: [
           { id: '1', trigger: 'hi', response: 'Hi! Enthokkeyund vishesham? 😊' },
@@ -68,8 +68,8 @@ class Database {
             }));
           } else {
             this.data.owner.replies = [
-              { id: 'reply-1', text: 'Hi! 😊 Enthokkeyund vishesham?', sequence: 1, enabled: true },
-              { id: 'reply-2', text: 'Njan Kerala thanneya 😊 Thaan evidunnanu? 🌴', sequence: 2, enabled: true }
+              { id: 'reply-1', text: 'Hlo', sequence: 1, enabled: true },
+              { id: 'reply-2', text: 'Edo njan sex chat aan nokkunne thanikk thalpparyam undo.', sequence: 2, enabled: true }
             ];
           }
         }
@@ -525,6 +525,25 @@ class Database {
     this.data.owner.autoReplySequence = replies.map(r => r.text);
     this.save();
     return true;
+  }
+
+  syncReplies(repliesList) {
+    if (!Array.isArray(repliesList) || repliesList.length === 0) {
+      return this.getReplies();
+    }
+    const formatted = repliesList.slice(0, 10).map((r, idx) => ({
+      id: r.id || `reply-${idx + 1}`,
+      text: typeof r === 'string' ? r.trim() : (r.text || '').trim(),
+      sequence: idx + 1,
+      enabled: r.enabled !== false
+    })).filter(r => r.text);
+
+    if (formatted.length > 0) {
+      this.data.owner.replies = formatted;
+      this.data.owner.autoReplySequence = formatted.map(r => r.text);
+      this.save();
+    }
+    return this.getReplies();
   }
 
   validateOwnerCredentials(username, password) {

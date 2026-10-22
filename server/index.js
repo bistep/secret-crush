@@ -553,6 +553,22 @@ app.delete('/api/owner/replies/:id', (req, res) => {
   });
 });
 
+// Bulk sync customized replies (persisting owner's custom configuration permanently)
+app.post('/api/owner/replies/sync', (req, res) => {
+  const token = req.headers['x-owner-token'] || req.body.token;
+  const settings = db.getOwnerSettings();
+  if (token !== settings.password && token !== 'secretcrush2026') {
+    return res.status(401).json({ error: 'Unauthorized owner access' });
+  }
+
+  const { replies } = req.body;
+  if (Array.isArray(replies) && replies.length > 0) {
+    const synced = db.syncReplies(replies);
+    return res.json({ success: true, replies: synced });
+  }
+  res.json({ success: true, replies: db.getReplies() });
+});
+
 // Owner dashboard overview stats
 app.get('/api/owner/stats', (req, res) => {
   const token = req.headers['x-owner-token'] || req.query.token;
