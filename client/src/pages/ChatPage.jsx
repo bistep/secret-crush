@@ -37,6 +37,7 @@ export default function ChatPage() {
   const [showPhoneLoginModal, setShowPhoneLoginModal] = useState(false);
   const [sentCount, setSentCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [chatLock, setChatLock] = useState({ isLocked: false, hasPendingChat: false });
 
   // Camera & Image Sharing State
   const [showCameraModal, setShowCameraModal] = useState(false);
@@ -125,6 +126,23 @@ export default function ChatPage() {
       .finally(() => setLoading(false));
   }, [personaId, visitorId]);
 
+  // Check chat lock status (must send at least one image in previous chat before messaging another person)
+  const checkLockStatus = () => {
+    if (!visitorId) return;
+    fetch(`/api/visitors/${visitorId}/chat-lock-status?personaId=${cleanPersonaId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data.isLocked === 'boolean') {
+          setChatLock(data);
+        }
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    checkLockStatus();
+  }, [visitorId, cleanPersonaId, messages.length]);
+
   // Socket listener for new messages
   useEffect(() => {
     if (!socket || !personaId) return;
@@ -149,12 +167,32 @@ export default function ChatPage() {
       }
     };
 
+    const handleChatLocked = (data) => {
+      if (data) setChatLock(data);
+    };
+
+    const handleSocketError = (err) => {
+      if (err?.code === 'CHAT_LOCKED_IMAGE_REQUIRED') {
+        setChatLock({
+          isLocked: true,
+          hasPendingChat: true,
+          pendingPersonaId: err.pendingPersonaId,
+          pendingPersonaName: err.pendingPersonaName,
+          message: err.message
+        });
+      }
+    };
+
     socket.on('message:new', handleNewMessage);
     socket.on('persona:typing_status', handleTypingStatus);
+    socket.on('chat:locked', handleChatLocked);
+    socket.on('error', handleSocketError);
 
     return () => {
       socket.off('message:new', handleNewMessage);
       socket.off('persona:typing_status', handleTypingStatus);
+      socket.off('chat:locked', handleChatLocked);
+      socket.off('error', handleSocketError);
     };
   }, [socket, personaId, visitorId]);
 
@@ -165,6 +203,10 @@ export default function ChatPage() {
   // Send Text Message
   const handleSend = (e) => {
     e?.preventDefault();
+    if (chatLock.isLocked) {
+      alert("Send at least one image in this chat to unlock your next chat with another person");
+      return;
+    }
     if (!inputText.trim()) return;
 
     const content = inputText.trim();
@@ -263,6 +305,7 @@ export default function ChatPage() {
           };
           setMessages((prev) => [...prev, tempMsg]);
           sendMessage(personaId, compressedData, 'image');
+          setChatLock(prev => ({ ...prev, isLocked: false, hasPendingChat: false }));
           scrollToBottom();
         };
         img.src = event.target?.result;
@@ -326,6 +369,7 @@ export default function ChatPage() {
     };
     setMessages((prev) => [...prev, tempMsg]);
     sendMessage(personaId, capturedImage, 'image');
+    setChatLock(prev => ({ ...prev, isLocked: false, hasPendingChat: false }));
 
     closeCameraModal();
   };
@@ -352,6 +396,13 @@ export default function ChatPage() {
       inputRef.current.focus();
     }
   };
+
+  const visitorMsgs = messages.filter(m => m.sender === 'visitor');
+  const hasSentMessageInThisChat = visitorMsgs.length > 0;
+  const hasSentImageInThisChat = visitorMsgs.some(m => 
+    m.type === 'image' || 
+    (typeof m.content === 'string' && (m.content.startsWith('data:image/') || m.content.includes('/api/uploads/image_') || m.content.includes('/uploads/image_')))
+  );
 
   if (!persona && !loading) {
     return (
@@ -633,6 +684,36 @@ export default function ChatPage() {
             className="hidden"
           />
 
+          {/* Send image unlock helper banner */}
+          {hasSentMessageInThisChat && !hasSentImageInThisChat && !chatLock.isLocked && (
+            <div className="bg-gradient-to-r from-pink-950/90 via-purple-950/90 to-pink-950/90 border border-pink-500/50 rounded-2xl p-3 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 animate-pulse">
+              <div className="flex items-center gap-2.5 text-left">
+                <div className="w-8 h-8 rounded-full bg-pink-500/20 border border-pink-400/40 flex items-center justify-center shrink-0">
+                  <Camera className="w-4 h-4 text-pink-400" />
+                </div>
+                <p className="text-xs text-pink-200 font-medium leading-tight">
+                  Send at least one image in this chat to unlock your next chat with another person
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={openCamera}
+                  className="px-3 py-1.5 rounded-xl bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-pink-600/30 transition-all cursor-pointer"
+                >
+                  <Camera className="w-3.5 h-3.5" /> Camera
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-purple-600/30 transition-all cursor-pointer"
+                >
+                  <ImageIcon className="w-3.5 h-3.5" /> Upload
+                </button>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSend} className="flex items-center gap-2">
             {/* Gallery Photo / Video Upload Button */}
             <button
@@ -674,18 +755,27 @@ export default function ChatPage() {
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder={`Message ${persona?.name || '...'}`}
-              className="flex-1 px-4 py-3 rounded-2xl bg-white/5 border border-purple-900/40 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500"
+              disabled={chatLock.isLocked}
+              placeholder={
+                chatLock.isLocked
+                  ? "Send at least one image in your previous chat to unlock"
+                  : `Message ${persona?.name || '...'}`
+              }
+              className={`flex-1 px-4 py-3 rounded-2xl bg-white/5 border text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 ${
+                chatLock.isLocked
+                  ? "border-red-500/40 opacity-50 cursor-not-allowed"
+                  : "border-purple-900/40 focus:border-pink-500 focus:ring-pink-500"
+              }`}
             />
 
             {/* Send Button */}
             <button
               type="submit"
-              disabled={!inputText.trim()}
+              disabled={chatLock.isLocked || !inputText.trim()}
               className="p-3 rounded-2xl bg-gradient-to-r from-pink-600 via-rose-500 to-purple-600 hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-md shadow-pink-600/30 transition-all flex items-center justify-center shrink-0"
               title="Send message"
             >
-              <Send className="w-4 h-4 fill-white" />
+              {chatLock.isLocked ? <Lock className="w-4 h-4 text-white/70" /> : <Send className="w-4 h-4 fill-white" />}
             </button>
           </form>
         </div>
@@ -781,6 +871,54 @@ export default function ChatPage() {
             </button>
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-black/80 text-pink-300 text-xs font-semibold backdrop-blur-md border border-white/10">
               👁️ View Once • Photo will disappear when closed
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Locked Modal - Requires at least one image in previous chat */}
+      {chatLock.isLocked && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-[#130F23] border border-pink-500/50 rounded-3xl p-6 text-center space-y-4 shadow-2xl animate-in fade-in duration-300">
+            <div className="w-16 h-16 mx-auto rounded-3xl bg-pink-500/20 border border-pink-400/40 flex items-center justify-center shadow-lg shadow-pink-500/20">
+              <Lock className="w-8 h-8 text-pink-400" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-white tracking-tight">Next Chat Locked 🔒</h3>
+              <p className="text-sm text-pink-200/95 leading-relaxed font-semibold">
+                Send at least one image in this chat to unlock your next chat with another person
+              </p>
+            </div>
+            {chatLock.pendingPersonaName && (
+              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3 text-left">
+                {chatLock.pendingPersonaAvatar ? (
+                  <img src={chatLock.pendingPersonaAvatar} alt="" className="w-12 h-12 rounded-xl object-contain bg-purple-950/60 p-1 border border-pink-500/20" />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-pink-500/20 flex items-center justify-center text-pink-400 font-bold">
+                    💬
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-slate-400 font-medium">Currently active chat:</p>
+                  <p className="text-sm font-bold text-white truncate">{chatLock.pendingPersonaName}</p>
+                </div>
+              </div>
+            )}
+            <div className="flex flex-col gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => navigate(`/chat/${chatLock.pendingPersonaId}`)}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-600 via-rose-500 to-purple-600 text-white font-bold text-sm shadow-lg shadow-pink-600/30 hover:opacity-95 transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Camera className="w-4 h-4" /> Go to {chatLock.pendingPersonaName || 'Active'}'s Chat & Send Image
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="w-full py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-300 font-semibold text-xs transition cursor-pointer"
+              >
+                Return to Explore
+              </button>
             </div>
           </div>
         </div>

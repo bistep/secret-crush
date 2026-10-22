@@ -235,6 +235,14 @@ app.get('/api/conversations/:visitorId/:personaId', (req, res) => {
   });
 });
 
+// Check Visitor Chat Lock Status (image requirement before messaging another persona)
+app.get('/api/visitors/:visitorId/chat-lock-status', (req, res) => {
+  const { visitorId } = req.params;
+  const { personaId } = req.query;
+  const status = db.getVisitorChatLockStatus(visitorId, personaId);
+  res.json(status);
+});
+
 // 9. Send Message REST Fallback
 app.post('/api/messages', (req, res) => {
   const { visitorId, personaId, content } = req.body;
@@ -244,6 +252,17 @@ app.post('/api/messages', (req, res) => {
 
   if (db.isBlocked(visitorId, personaId)) {
     return res.status(403).json({ error: 'This conversation has been blocked' });
+  }
+
+  // Enforce image unlock rule: must send at least one image in previous chat to unlock next chat
+  const lockStatus = db.getVisitorChatLockStatus(visitorId, personaId);
+  if (lockStatus.isLocked) {
+    return res.status(403).json({
+      error: lockStatus.message,
+      code: 'CHAT_LOCKED_IMAGE_REQUIRED',
+      pendingPersonaId: lockStatus.pendingPersonaId,
+      pendingPersonaName: lockStatus.pendingPersonaName
+    });
   }
 
   const conv = db.getConversation(visitorId, personaId);

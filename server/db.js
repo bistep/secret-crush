@@ -104,7 +104,12 @@ class Database {
   }
 
   getPersona(id) {
-    return this.data.personas[id] || null;
+    if (!id) return null;
+    const clean = String(id).replace(/^@/, '');
+    return this.data.personas[id] || 
+      this.data.personas[clean] || 
+      Object.values(this.data.personas).find(p => p.id === clean || p.id === id || p.handle === id || p.handle === `@${clean}`) || 
+      null;
   }
 
   updatePersonaPresence(id, isOnline, lastSeen) {
@@ -195,6 +200,42 @@ class Database {
     return Object.values(this.data.conversations)
       .filter(c => c.visitorId === visitorId && !c.isBlocked)
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  }
+
+  getVisitorChatLockStatus(visitorId, targetPersonaId = null) {
+    if (!visitorId) return { isLocked: false, hasPendingChat: false };
+
+    const cleanTargetId = targetPersonaId ? String(targetPersonaId).replace(/^@/, '') : null;
+    const convs = Object.values(this.data.conversations).filter(c => c.visitorId === visitorId && !c.isBlocked);
+
+    for (const conv of convs) {
+      const msgs = this.getMessages(conv.id);
+      const visitorMsgs = msgs.filter(m => m.sender === 'visitor');
+      if (visitorMsgs.length > 0) {
+        // Has the visitor sent at least one image in this conversation?
+        const hasVisitorImage = visitorMsgs.some(m => 
+          m.type === 'image' || 
+          (typeof m.content === 'string' && (m.content.startsWith('data:image/') || m.content.includes('/api/uploads/image_') || m.content.includes('/uploads/image_')))
+        );
+
+        if (!hasVisitorImage) {
+          const cleanConvPersonaId = String(conv.personaId).replace(/^@/, '');
+          const requiredPersona = this.getPersona(conv.personaId) || { id: conv.personaId, name: conv.personaName || conv.personaId, avatar_url: conv.personaAvatar || '' };
+          const isTargetLocked = cleanTargetId ? (cleanTargetId !== cleanConvPersonaId) : true;
+
+          return {
+            isLocked: isTargetLocked,
+            hasPendingChat: true,
+            pendingPersonaId: cleanConvPersonaId,
+            pendingPersonaName: requiredPersona.name,
+            pendingPersonaAvatar: requiredPersona.avatar_url || conv.personaAvatar || '',
+            message: 'Send at least one image in this chat to unlock your next chat with another person'
+          };
+        }
+      }
+    }
+
+    return { isLocked: false, hasPendingChat: false };
   }
 
   getAllConversationsForOwner() {

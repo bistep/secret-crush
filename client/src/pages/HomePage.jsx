@@ -41,6 +41,22 @@ export default function HomePage() {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [isReturningVisitor, setIsReturningVisitor] = useState(false);
 
+  // Chat Lock State (Require image in previous chat before messaging another person)
+  const [chatLockInfo, setChatLockInfo] = useState({ isLocked: false, hasPendingChat: false });
+  const [showChatLockModal, setShowChatLockModal] = useState(false);
+
+  useEffect(() => {
+    if (!visitorId) return;
+    fetch(`/api/visitors/${visitorId}/chat-lock-status`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data.isLocked === 'boolean') {
+          setChatLockInfo(data);
+        }
+      })
+      .catch(() => {});
+  }, [visitorId]);
+
   // Check if returning client & rotate names/profiles so returning clients see fresh faces
   useEffect(() => {
     try {
@@ -367,7 +383,12 @@ export default function HomePage() {
         {filteredProfiles.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {filteredProfiles.map((profile) => (
-              <ProfileCard key={profile.id} profile={profile} />
+              <ProfileCard
+                key={profile.id}
+                profile={profile}
+                chatLock={chatLockInfo}
+                onLockedClick={() => setShowChatLockModal(true)}
+              />
             ))}
           </div>
         ) : (
@@ -607,6 +628,57 @@ export default function HomePage() {
             >
               Start Chatting to Reach 50+ Chats
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Locked Modal on Home Page */}
+      {showChatLockModal && chatLockInfo.hasPendingChat && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-[#130F23] border border-pink-500/50 rounded-3xl p-6 text-center space-y-4 shadow-2xl animate-in fade-in duration-300">
+            <div className="w-16 h-16 mx-auto rounded-3xl bg-pink-500/20 border border-pink-400/40 flex items-center justify-center shadow-lg shadow-pink-500/20">
+              <Lock className="w-8 h-8 text-pink-400" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-white tracking-tight">Next Chat Locked 🔒</h3>
+              <p className="text-sm text-pink-200/95 leading-relaxed font-semibold">
+                Send at least one image in this chat to unlock your next chat with another person
+              </p>
+            </div>
+            {chatLockInfo.pendingPersonaName && (
+              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3 text-left">
+                {chatLockInfo.pendingPersonaAvatar ? (
+                  <img src={chatLockInfo.pendingPersonaAvatar} alt="" className="w-12 h-12 rounded-xl object-contain bg-purple-950/60 p-1 border border-pink-500/20" />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-pink-500/20 flex items-center justify-center text-pink-400 font-bold">
+                    💬
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-slate-400 font-medium">Currently active chat:</p>
+                  <p className="text-sm font-bold text-white truncate">{chatLockInfo.pendingPersonaName}</p>
+                </div>
+              </div>
+            )}
+            <div className="flex flex-col gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowChatLockModal(false);
+                  window.location.href = `/chat/${chatLockInfo.pendingPersonaId}`;
+                }}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-600 via-rose-500 to-purple-600 text-white font-bold text-sm shadow-lg shadow-pink-600/30 hover:opacity-95 transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                Go to {chatLockInfo.pendingPersonaName || 'Active'}'s Chat & Send Image 📸
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowChatLockModal(false)}
+                className="w-full py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-300 font-semibold text-xs transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

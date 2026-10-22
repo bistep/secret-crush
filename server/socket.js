@@ -158,6 +158,19 @@ export function setupSocket(io) {
         return;
       }
 
+      // Check if chat is locked (must send at least one image in previous chat to unlock next chat)
+      const lockStatus = db.getVisitorChatLockStatus(visitorId, personaId);
+      if (lockStatus.isLocked) {
+        socket.emit('chat:locked', lockStatus);
+        socket.emit('error', {
+          code: 'CHAT_LOCKED_IMAGE_REQUIRED',
+          message: lockStatus.message,
+          pendingPersonaId: lockStatus.pendingPersonaId,
+          pendingPersonaName: lockStatus.pendingPersonaName
+        });
+        return;
+      }
+
       const isAdminOnline = activeOwnerSockets.size > 0;
       const conv = db.getConversation(visitorId, personaId);
       const convId = conv.id;
@@ -240,31 +253,44 @@ export function setupSocket(io) {
 
       // Clear any pending timer for this conversation
       if (activeAutoReplyTimers.has(convId)) {
-        clearTimeout(activeAutoReplyTimers.get(convId));
+        const existing = activeAutoReplyTimers.get(convId);
+        if (existing) {
+          if (existing.replyTimer) clearTimeout(existing.replyTimer);
+          else clearTimeout(existing);
+          if (existing.typingTimer) clearTimeout(existing.typingTimer);
+        }
         activeAutoReplyTimers.delete(convId);
       }
 
       // 5. Realistic typing delay: random 5 to 10 seconds (5000ms - 10000ms)
       const typingDelay = Math.floor(5000 + Math.random() * 5000);
 
-      // Show typing indicator after 1 second
-      setTimeout(() => {
-        io.to(`conv:${convId}`).emit('persona:typing_status', {
-          convId,
-          personaId,
-          isTyping: true
-        });
-      }, 1000);
+      // REQUIREMENT:
+      // Always for 1st auto-reply response (stepIndex === 0), do NOT show typing ("Neha is typing...").
+      // Only for the 2nd auto-reply message (stepIndex >= 1) and subsequent replies, show the typing indicator after 1 second.
+      let typingTimer = null;
+      if (stepIndex > 0) {
+        typingTimer = setTimeout(() => {
+          io.to(`conv:${convId}`).emit('persona:typing_status', {
+            convId,
+            personaId,
+            isTyping: true
+          });
+        }, 1000);
+      }
 
-      const timer = setTimeout(() => {
+      const replyTimer = setTimeout(() => {
+        if (typingTimer) clearTimeout(typingTimer);
         activeAutoReplyTimers.delete(convId);
 
-        // Turn off typing indicator
-        io.to(`conv:${convId}`).emit('persona:typing_status', {
-          convId,
-          personaId,
-          isTyping: false
-        });
+        // Turn off typing indicator if it was turned on
+        if (stepIndex > 0) {
+          io.to(`conv:${convId}`).emit('persona:typing_status', {
+            convId,
+            personaId,
+            isTyping: false
+          });
+        }
 
         // Re-check conditions at execution time:
         // A. Is auto-reply still enabled?
@@ -303,7 +329,7 @@ export function setupSocket(io) {
         });
       }, typingDelay);
 
-      activeAutoReplyTimers.set(convId, timer);
+      activeAutoReplyTimers.set(convId, { replyTimer, typingTimer, stepIndex });
     });
 
     // --- Owner Sends Reply to Visitor ---
@@ -315,6 +341,22 @@ export function setupSocket(io) {
 
       const conv = db.getConversation(visitorId, personaId);
       const convId = conv.id;
+
+      // Cancel any pending auto-reply and turn off typing indicator when owner replies manually
+      if (activeAutoReplyTimers.has(convId)) {
+        const existing = activeAutoReplyTimers.get(convId);
+        if (existing) {
+          if (existing.replyTimer) clearTimeout(existing.replyTimer);
+          else clearTimeout(existing);
+          if (existing.typingTimer) clearTimeout(existing.typingTimer);
+        }
+        activeAutoReplyTimers.delete(convId);
+        io.to(`conv:${convId}`).emit('persona:typing_status', {
+          convId,
+          personaId,
+          isTyping: false
+        });
+      }
 
       const message = db.addMessage({
         conversationId: convId,

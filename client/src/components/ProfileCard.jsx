@@ -1,13 +1,21 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, MapPin } from 'lucide-react';
+import { Heart, MessageCircle, MapPin, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import confetti from 'canvas-confetti';
 
-export default function ProfileCard({ profile }) {
+export default function ProfileCard({ profile, chatLock, onLockedClick }) {
   const navigate = useNavigate();
   const { favorites, toggleFavorite } = useAuth();
   const isFav = favorites.includes(profile.id);
+
+  const cleanPendingId = chatLock?.pendingPersonaId ? String(chatLock.pendingPersonaId).replace(/^@/, '') : '';
+  const cleanProfileId = String(profile.id).replace(/^@/, '');
+  const isLockedForThisCard = Boolean(
+    chatLock?.hasPendingChat && 
+    cleanPendingId && 
+    cleanPendingId !== cleanProfileId
+  );
 
   const handleFavoriteClick = (e) => {
     e.stopPropagation();
@@ -23,6 +31,12 @@ export default function ProfileCard({ profile }) {
   };
 
   const handleChatClick = () => {
+    if (isLockedForThisCard) {
+      if (onLockedClick) {
+        onLockedClick(chatLock);
+        return;
+      }
+    }
     navigate(`/chat/${profile.id}`);
   };
 
@@ -33,6 +47,13 @@ export default function ProfileCard({ profile }) {
     >
       {/* Avatar Picture Container (Game / App Avatar) */}
       <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-b from-purple-950/40 to-[#130F21] p-4 flex items-center justify-center">
+        {/* If chat is locked for this profile */}
+        {isLockedForThisCard && (
+          <div className="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-full bg-black/80 backdrop-blur-md border border-pink-500/40 text-[10px] text-pink-300 font-semibold flex items-center gap-1 shadow">
+            <Lock className="w-3 h-3 text-pink-400" />
+            <span>Locked</span>
+          </div>
+        )}
         <div className="relative w-full h-full max-w-[180px] max-h-[180px] rounded-2xl overflow-hidden shadow-inner flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
           <img
             src={profile.avatar_url}
