@@ -1,5 +1,6 @@
 import express from 'express';
 import http from 'http';
+import fs from 'fs';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
