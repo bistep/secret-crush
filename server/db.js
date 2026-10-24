@@ -17,6 +17,15 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
+export const DEFAULT_REPLIES = [
+  { id: 'reply-1', text: 'Hlo', sequence: 1, enabled: true },
+  { id: 'reply-2', text: 'Edo njan sex chat aan nokkunne thanikk thalpparyam undo.', sequence: 2, enabled: true },
+  { id: 'reply-3', text: 'sadhanathintte pic onnu ayakkuo', sequence: 3, enabled: true },
+  { id: 'reply-4', text: 'Face kaanikkalle block aavum', sequence: 4, enabled: true },
+  { id: 'reply-5', text: 'Nalla mood aavunnu undo?', sequence: 5, enabled: true },
+  { id: 'reply-6', text: 'Wait cheyy njan ipo thirichu varam', sequence: 6, enabled: true }
+];
+
 class Database {
   constructor() {
     this.data = {
@@ -33,10 +42,8 @@ class Database {
         displayName: 'Secret Crush Operator & Concierge',
         autoReplyEnabled: true,
         autoReplyDelaySec: 6,
-        autoReplySequence: [
-          "Hlo",
-          "Edo njan sex chat aan nokkunne thanikk thalpparyam undo."
-        ],
+        autoReplySequence: DEFAULT_REPLIES.map(r => r.text),
+        replies: DEFAULT_REPLIES,
         customAutoReplies: [
           { id: '1', trigger: 'hi', response: 'Hi! Enthokkeyund vishesham? 😊' },
           { id: '2', trigger: 'evideya', response: 'Njan Kerala thanneya 😊 Thaan evidunnanu?' },
@@ -58,20 +65,13 @@ class Database {
         if (this.data.owner.autoReplyEnabled === undefined) {
           this.data.owner.autoReplyEnabled = true;
         }
-        if (!Array.isArray(this.data.owner.replies)) {
-          if (Array.isArray(this.data.owner.autoReplySequence) && this.data.owner.autoReplySequence.length > 0) {
-            this.data.owner.replies = this.data.owner.autoReplySequence.map((text, idx) => ({
-              id: `reply-${idx + 1}`,
-              text,
-              sequence: idx + 1,
-              enabled: true
-            }));
-          } else {
-            this.data.owner.replies = [
-              { id: 'reply-1', text: 'Hlo', sequence: 1, enabled: true },
-              { id: 'reply-2', text: 'Edo njan sex chat aan nokkunne thanikk thalpparyam undo.', sequence: 2, enabled: true }
-            ];
-          }
+        if (!Array.isArray(this.data.owner.replies) || this.data.owner.replies.length === 0) {
+          this.data.owner.replies = DEFAULT_REPLIES;
+          this.data.owner.autoReplySequence = DEFAULT_REPLIES.map(r => r.text);
+        } else if (this.data.owner.replies.length === 2 && this.data.owner.replies[0].text === 'Hlo') {
+          // Upgrade initial 2 replies to full 6 default replies
+          this.data.owner.replies = DEFAULT_REPLIES;
+          this.data.owner.autoReplySequence = DEFAULT_REPLIES.map(r => r.text);
         }
       }
       // Populate/sync with all 108 Kerala game-style avatar personas

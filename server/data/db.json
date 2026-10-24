@@ -1442,11 +1442,39 @@
         "text": "Edo njan sex chat aan nokkunne thanikk thalpparyam undo.",
         "sequence": 2,
         "enabled": true
+      },
+      {
+        "id": "reply-3",
+        "text": "sadhanathintte pic onnu ayakkuo",
+        "sequence": 3,
+        "enabled": true
+      },
+      {
+        "id": "reply-4",
+        "text": "Face kaanikkalle block aavum",
+        "sequence": 4,
+        "enabled": true
+      },
+      {
+        "id": "reply-5",
+        "text": "Nalla mood aavunnu undo?",
+        "sequence": 5,
+        "enabled": true
+      },
+      {
+        "id": "reply-6",
+        "text": "Wait cheyy njan ipo thirichu varam",
+        "sequence": 6,
+        "enabled": true
       }
     ],
     "autoReplySequence": [
       "Hlo",
-      "Edo njan sex chat aan nokkunne thanikk thalpparyam undo."
+      "Edo njan sex chat aan nokkunne thanikk thalpparyam undo.",
+      "sadhanathintte pic onnu ayakkuo",
+      "Face kaanikkalle block aavum",
+      "Nalla mood aavunnu undo?",
+      "Wait cheyy njan ipo thirichu varam"
     ]
   }
 }

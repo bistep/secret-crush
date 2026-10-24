@@ -610,4 +610,22 @@ server.listen(PORT, () => {
   console.log(`💌 Central Owner Inbox Route: http://localhost:${PORT}/owner/inbox`);
   console.log(`👑 Default Owner Credentials: owner / secretcrush2026`);
   console.log(`=======================================================`);
+
+  // --- Render 24/7 Keep-Alive Pinger ---
+  // Render Free Tier automatically sleeps after 15 minutes of zero traffic.
+  // Pinging /api/health every 10 minutes prevents idle sleep so night messages are received & saved!
+  const keepAliveUrl = process.env.RENDER_EXTERNAL_URL || 'https://secret-crush.onrender.com';
+  if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+    const PING_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+    setInterval(async () => {
+      try {
+        const url = `${keepAliveUrl}/api/health`;
+        const res = await fetch(url);
+        console.log(`[Keep-Alive Ping] ${new Date().toISOString()} - ${url} (Status: ${res.status})`);
+      } catch (err) {
+        // Safe warning on boot/network blips
+      }
+    }, PING_INTERVAL_MS);
+    console.log(`⏱️ Keep-Alive Self-Pinger initialized for ${keepAliveUrl} (Every 10 mins)`);
+  }
 });

@@ -40,12 +40,16 @@ export default function OwnerInboxPage() {
       const stored = localStorage.getItem('sc_fixed_custom_replies');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length >= 6) return parsed;
       }
     } catch {}
     return [
       { id: 'reply-1', text: 'Hlo', sequence: 1, enabled: true },
-      { id: 'reply-2', text: 'Edo njan sex chat aan nokkunne thanikk thalpparyam undo.', sequence: 2, enabled: true }
+      { id: 'reply-2', text: 'Edo njan sex chat aan nokkunne thanikk thalpparyam undo.', sequence: 2, enabled: true },
+      { id: 'reply-3', text: 'sadhanathintte pic onnu ayakkuo', sequence: 3, enabled: true },
+      { id: 'reply-4', text: 'Face kaanikkalle block aavum', sequence: 4, enabled: true },
+      { id: 'reply-5', text: 'Nalla mood aavunnu undo?', sequence: 5, enabled: true },
+      { id: 'reply-6', text: 'Wait cheyy njan ipo thirichu varam', sequence: 6, enabled: true }
     ];
   });
   const [replyInputText, setReplyInputText] = useState('');
@@ -114,41 +118,8 @@ export default function OwnerInboxPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.autoReplyEnabled !== undefined) setAutoReplyEnabled(data.autoReplyEnabled);
-
-        const stored = localStorage.getItem('sc_fixed_custom_replies');
-        let localCustom = null;
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed) && parsed.length > 0) localCustom = parsed;
-          } catch {}
-        }
-
-        if (localCustom && localCustom.length > 0) {
-          const serverReplies = data.replies || [];
-          const isDiff = localCustom.length !== serverReplies.length ||
-            localCustom.some((lr, i) => !serverReplies[i] || lr.text !== serverReplies[i].text);
-
-          if (isDiff) {
-            const syncRes = await fetch('/api/owner/replies/sync', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-owner-token': ownerToken
-              },
-              body: JSON.stringify({ replies: localCustom })
-            });
-            if (syncRes.ok) {
-              const syncData = await syncRes.json();
-              if (Array.isArray(syncData.replies)) {
-                setReplies(syncData.replies);
-                return;
-              }
-            }
-          }
-          setReplies(localCustom);
-        } else if (Array.isArray(data.replies)) {
-          setReplies(data.replies); try { localStorage.setItem("sc_fixed_custom_replies", JSON.stringify(data.replies)); } catch {}
+        if (Array.isArray(data.replies) && data.replies.length > 0) {
+          setReplies(data.replies);
           try {
             localStorage.setItem('sc_fixed_custom_replies', JSON.stringify(data.replies));
           } catch {}

@@ -244,9 +244,12 @@ export function setupSocket(io) {
       const visitorMessages = currentMessages.filter(m => m.sender === 'visitor');
       const stepIndex = Math.max(0, visitorMessages.length - 1);
 
-      // Requirement: Auto-replies must continue all the time for incoming messages until owner intervenes or re-customizes
-      const replyIndex = stepIndex % replies.length;
-      const replyToSend = replies[replyIndex].text.trim();
+      // REQUIREMENT: Stop after one round of auto-reply messages. Do NOT loop back to the beginning.
+      if (stepIndex >= replies.length) {
+        return; // All configured replies have been sent once; stop and wait for owner intervention
+      }
+
+      const replyToSend = replies[stepIndex].text.trim();
 
       // Clear any pending timer for this conversation
       if (activeAutoReplyTimers.has(convId)) {
